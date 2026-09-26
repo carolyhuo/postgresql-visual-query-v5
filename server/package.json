@@ -1,5 +1,5 @@
 {
-  "name": "postgres-query-4-server",
+  "name": "postgresql-visual-query-v5-server",
   "version": "0.0.1",
   "type": "module",
   "babel": {
