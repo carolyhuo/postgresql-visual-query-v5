@@ -193,6 +193,22 @@ describe('query builder', () => {
     expect(query).toEqual(expected);
   });
 
+  test('add window function', () => {
+    const data = _.cloneDeep(testData1);
+    data.columns[0].is_window_function = true;
+    data.columns[0].window_function_name = 'ROW_NUMBER';
+    data.columns[0].window_partition_by = 'amet_kood';
+    data.columns[0].window_order_by = 'nimetus';
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+    const expected =
+      'SELECT\n'
+      + 'ROW_NUMBER() OVER (PARTITION BY amet_kood ORDER BY nimetus) AS row_number_result, amet.nimetus, amet.kirjeldus\n'
+      + 'FROM public.amet;';
+
+    expect(query).toEqual(expected);
+  });
+
   test('add GROUP BY', () => {
     const data = _.cloneDeep(testData1);
 

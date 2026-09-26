@@ -152,4 +152,8 @@ export type QueryColumnType = {
   returning: boolean;
   returningOnly: boolean;
   value_enabled: boolean;
+  is_window_function?: boolean;
+  window_function_name?: string;     // e.g. 'RANK', 'DENSE_RANK', 'ROW_NUMBER' or 'SUM'
+  window_partition_by?: string;      // e.g. 'region' or name of the column
+  window_order_by?: string;
 };

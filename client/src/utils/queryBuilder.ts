@@ -494,7 +494,9 @@ const addColumnsToQuery = (
   };
 
   // Check if any column uses aggregation
-  const hasAggregates = columns.some((col) => col.column_aggregate && col.column_aggregate.length > 0);
+  const hasAggregates = columns.some(
+    (col) => !col.is_window_function && col.column_aggregate && col.column_aggregate.length > 0,
+  );
 
   // Process columns for fields, orders, group by, etc.
   columns.forEach((column) => {
@@ -503,6 +505,28 @@ const addColumnsToQuery = (
     }
 
     if (column.display_in_query) {
+      if (column.is_window_function) {
+        const functionName = (column.window_function_name || column.column_aggregate || 'ROW_NUMBER').toUpperCase();
+        if (!/^[A-Z_][A-Z0-9_]*$/.test(functionName)) {
+          throw new Error(`Invalid window function name: ${functionName}`);
+        }
+
+        const argument = ['ROW_NUMBER', 'RANK', 'DENSE_RANK'].includes(functionName)
+          ? ''
+          : column.column_name === '*'
+            ? '*'
+            : column.column_name !== column.column_name_original
+              ? replaceColumnNamesWithQualified(column.column_name, data.tables)
+              : `${quoteIdentifier(column.table_alias || column.table_name)}.${quoteIdentifier(column.column_name)}`;
+        const partitionClause = column.window_partition_by ? `PARTITION BY ${column.window_partition_by}` : '';
+        const orderClause = column.window_order_by ? `ORDER BY ${column.window_order_by}` : '';
+        const overContent = [partitionClause, orderClause].filter(Boolean).join(' ');
+        const alias = column.column_alias || `${functionName.toLowerCase()}_result`;
+
+        query.field(`${functionName}(${argument}) OVER (${overContent})`, quoteIdentifier(alias));
+        return;
+      }
+
       // Special case for the '*' column (select all columns from a table)
       if (column.column_name === '*') {
         const tableRef = column.table_alias || column.table_name;
