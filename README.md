@@ -1,4 +1,4 @@
-# Postgres Visual Query Builder v4
+# Postgres Visual Query Builder v5
 
 Application that allows users to visually create PostgreSQL SELECT, INSERT, UPDATE and DELETE queries.
 
