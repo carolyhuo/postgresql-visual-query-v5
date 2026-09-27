@@ -1,8 +1,38 @@
 import { INITIAL_STATE, queryReducer } from '../../reducers/queryReducer';
+import { ADD_CTE, REMOVE_CTE } from '../../actions/queryActions';
+import { createEmptyColumn } from '../../utils/columnUtils';
 
 describe('query reducer', () => {
   test('reducer return initial state', () => {
     expect(queryReducer(undefined, {})).toEqual(INITIAL_STATE);
+  });
+
+  test('ADD_CTE creates an empty query attached to the main query', () => {
+    const state = queryReducer(INITIAL_STATE, {
+      type: ADD_CTE,
+      payload: { id: 'cte-1', name: 'suured_linnad' },
+    });
+
+    expect(state.ctes).toHaveLength(1);
+    expect(state.ctes[0]).toMatchObject({
+      id: 'cte-1',
+      name: 'suured_linnad',
+      query: {
+        queryName: 'suured_linnad',
+        columns: [],
+        tables: [],
+      },
+    });
+  });
+
+  test('REMOVE_CTE removes the selected CTE', () => {
+    const stateWithCte = queryReducer(INITIAL_STATE, {
+      type: ADD_CTE,
+      payload: { id: 'cte-1', name: 'suured_linnad' },
+    });
+    const state = queryReducer(stateWithCte, { type: REMOVE_CTE, payload: 'cte-1' });
+
+    expect(state.ctes).toEqual([]);
   });
 
   test('ADD_RESULT_REJECTED adds query error to state', () => {
@@ -18,7 +48,7 @@ describe('query reducer', () => {
 
     const state = queryReducer(INITIAL_STATE, {
       type: 'ADD_RESULT_REJECTED',
-      payload,
+      payload: payload.response.data,
     });
 
     expect(state).toEqual({
@@ -35,41 +65,7 @@ describe('query reducer', () => {
       column_name: 'column_name',
     };
 
-    const columnResult = {
-      column_aggregate: '',
-      column_alias: '',
-      column_distinct_on: false,
-      column_filter: '',
-      column_filters: [
-        {
-          filter: "",
-          id: 0,
-        },
-      ],
-      column_group_by: false,
-      column_name: 'column_name',
-      column_order: false,
-      column_order_dir: true,
-      column_value: "NULL",
-      column_values: [
-        {
-          id: 0,
-          value: "DEFAULT",
-        },
-      ],
-      display_in_query: true,
-      column_filter_operand: '',
-      filter_as_having: false,
-      subquerySql: '',
-      subqueryId: 0,
-      id: 1,
-      returning: false,
-      returningOnly: false,
-      table_alias: 'table_alias',
-      table_name: 'table_name',
-      table_schema: 'table_schema',
-      value_enabled: true,
-    };
+    const columnResult = createEmptyColumn({ ...column, id: 1, column_name_original: column.column_name });
 
     const state = queryReducer(INITIAL_STATE, {
       type: 'ADD_COLUMN',
@@ -91,77 +87,13 @@ describe('query reducer', () => {
       column_name: 'column_name',
     };
 
-    const columnResult = {
-      column_aggregate: '',
-      column_alias: '',
-      column_distinct_on: false,
-      column_filter: '',
-      column_filters: [
-        {
-          filter: "",
-          id: 0,
-        },
-      ],
-      column_group_by: false,
-      column_name: 'column_name',
-      column_order: false,
-      column_order_dir: true,
-      column_value: "NULL",
-      column_values: [
-        {
-          id: 0,
-          value: "DEFAULT",
-        },
-      ],
-      display_in_query: true,
-      column_filter_operand: '',
-      filter_as_having: false,
-      subquerySql: '',
-      subqueryId: 0,
-      id: 1,
-      returning: false,
-      returningOnly: false,
-      table_alias: 'table_alias',
-      table_name: 'table_name',
-      table_schema: 'table_schema',
-      value_enabled: true,
-    };
-
-    const columnResult2 = {
-      column_aggregate: '',
-      column_alias: 'column_name_1',
-      column_distinct_on: false,
-      column_filter: '',
-      column_filters: [
-        {
-          filter: "",
-          id: 0,
-        },
-      ],
-      column_group_by: false,
-      column_name: 'column_name',
-      column_order: false,
-      column_order_dir: true,
-      column_value: "NULL",
-      column_values: [
-        {
-          id: 0,
-          value: "DEFAULT",
-        },
-      ],
-      display_in_query: true,
-      column_filter_operand: '',
-      filter_as_having: false,
-      subquerySql: '',
-      subqueryId: 0,
+    const columnResult = createEmptyColumn({ ...column, id: 1, column_name_original: column.column_name });
+    const columnResult2 = createEmptyColumn({
+      ...column,
       id: 2,
-      returning: false,
-      returningOnly: false,
-      table_alias: 'table_alias',
-      table_name: 'table_name',
-      table_schema: 'table_schema',
-      value_enabled: true,
-    };
+      column_alias: 'column_name_1',
+      column_name_original: column.column_name,
+    });
 
     let state = queryReducer(INITIAL_STATE, {
       type: 'ADD_COLUMN',
@@ -373,6 +305,7 @@ describe('query reducer', () => {
 
     const resultTable = {
       id: 1,
+      selectIndex: 0,
       table_alias: '',
       table_name: 'table_name',
       table_schema: 'table_schema',
@@ -399,6 +332,7 @@ describe('query reducer', () => {
 
     const resultTable = {
       id: 1,
+      selectIndex: 0,
       table_alias: '',
       table_name: 'table_name',
       table_schema: 'table_schema',
@@ -406,6 +340,7 @@ describe('query reducer', () => {
 
     const resultTable2 = {
       id: 2,
+      selectIndex: 1,
       table_alias: 'table_name_1',
       table_name: 'table_name',
       table_schema: 'table_schema',
@@ -884,25 +819,21 @@ describe('query reducer', () => {
   });
 
   test('UPDATE_COLUMN_FILTER updates correct filter', () => {
-
     let state = {
       ...INITIAL_STATE,
-      columns: [{
-        id: 0,
-        column_filters: [{
+      columns: [
+        {
           id: 0,
-          filter: '',
-        }],
-        id: 1,
-        column_filters: [{
-          id: 0,
-          filter: '',
+          column_filters: [{ id: 0, filter: '' }],
         },
         {
           id: 1,
-          filter: '',  
-        }],
-      }],
+          column_filters: [
+            { id: 0, filter: '' },
+            { id: 1, filter: '' },
+          ],
+        },
+      ],
     };
 
    state = queryReducer(state, {
@@ -916,22 +847,19 @@ describe('query reducer', () => {
 
     expect(state).toEqual({
       ...state,
-      columns: [{
-        id: 0,
-        column_filters: [{
+      columns: [
+        {
           id: 0,
-          filter: '',
-        }],
-        id: 1,
-        column_filters: [{
-          id: 0,
-          filter: 'new value',
+          column_filters: [{ id: 0, filter: '' }],
         },
         {
           id: 1,
-          filter: '',  
-        }],
-      }],
+          column_filters: [
+            { id: 0, filter: 'new value' },
+            { id: 1, filter: '' },
+          ],
+        },
+      ],
     });
   });
 
@@ -1168,6 +1096,7 @@ describe('query reducer', () => {
       using: [{
         id: 0,
         main_table: {
+          id: 0,
           table_name: '',
           table_schema: '',
           table_alias: '',
@@ -1191,6 +1120,7 @@ test('ADD_USING add multiple using', () => {
       using: [{
         id: 0,
         main_table: {
+          id: 0,
           table_name: '',
           table_schema: '',
           table_alias: '',
@@ -1199,6 +1129,7 @@ test('ADD_USING add multiple using', () => {
       }, {
         id: 1,
         main_table: {
+          id: 0,
           table_name: '',
           table_schema: '',
           table_alias: '',
@@ -1256,6 +1187,7 @@ test('ADD_USING add multiple using', () => {
   test('ADD_JOIN add join', () => {
     const state = queryReducer(INITIAL_STATE, {
       type: 'ADD_JOIN',
+      payload: { isDragAndDrop: true },
     });
 
     expect(state).toEqual({
@@ -1277,10 +1209,12 @@ test('ADD_USING add multiple using', () => {
   test('ADD_JOIN add multiple joins', () => {
     let state = queryReducer(INITIAL_STATE, {
       type: 'ADD_JOIN',
+      payload: { isDragAndDrop: true },
     });
 
     state = queryReducer(state, {
       type: 'ADD_JOIN',
+      payload: { isDragAndDrop: true },
     });
 
     expect(state).toEqual({
@@ -1314,20 +1248,24 @@ test('ADD_USING add multiple using', () => {
       ...INITIAL_STATE,
       joins: [{
         type: 'inner',
-        table_name: '',
-        table_schema: '',
-        table_alias: '',
-        on: '',
+        main_table: {
+          table_name: '',
+          table_schema: '',
+          table_alias: '',
+        },
+        conditions: [],
         id: 0,
       }],
     };
 
     const updatedJoin = {
       type: 'inner',
-      table_name: 'table_name',
-      table_schema: 'table_schema',
-      table_alias: '',
-      on: '',
+      main_table: {
+        table_name: 'table_name',
+        table_schema: 'table_schema',
+        table_alias: '',
+      },
+      conditions: [],
       id: 0,
     };
 
@@ -1347,20 +1285,24 @@ test('ADD_USING add multiple using', () => {
       ...INITIAL_STATE,
       joins: [{
         type: 'inner',
-        table_name: '',
-        table_schema: '',
-        table_alias: '',
-        on: '',
+        main_table: {
+          table_name: '',
+          table_schema: '',
+          table_alias: '',
+        },
+        conditions: [],
         id: 0,
       }],
     };
 
     const incorrectJoin = {
       type: 'inner',
-      table_name: 'table_name',
-      table_schema: 'table_schema',
-      table_alias: '',
-      on: '',
+      main_table: {
+        table_name: 'table_name',
+        table_schema: 'table_schema',
+        table_alias: '',
+      },
+      conditions: [],
       id: 1,
     };
 
@@ -1373,10 +1315,12 @@ test('ADD_USING add multiple using', () => {
       ...INITIAL_STATE,
       joins: [{
         type: 'inner',
-        table_name: '',
-        table_schema: '',
-        table_alias: '',
-        on: '',
+        main_table: {
+          table_name: '',
+          table_schema: '',
+          table_alias: '',
+        },
+        conditions: [],
         id: 0,
       }],
     });
@@ -1439,7 +1383,7 @@ test('ADD_USING add multiple using', () => {
 
     expect(state).toEqual({
       ...INITIAL_STATE,
-      joins: [join2],
+      joins: [{ ...join2, id: 0 }],
     });
   });
 
@@ -1452,7 +1396,7 @@ test('ADD_USING add multiple using', () => {
 
     const state = queryReducer(INITIAL_STATE, {
       type: 'ADD_RESULT_FULFILLED',
-      payload,
+      payload: payload.data,
     });
 
     expect(state).toEqual({
@@ -1563,7 +1507,7 @@ test('ADD_USING add multiple using', () => {
 
     state = queryReducer(state, {
       type: 'UPDATE_SQL',
-      payload: { sqlString: updatedSql },
+      payload: updatedSql,
     });
 
     expect(state).toEqual({ ...INITIAL_STATE, sql: updatedSql });
@@ -1624,7 +1568,7 @@ test('ADD_USING add multiple using', () => {
 
     state = queryReducer(state, {
       type: 'SET_LIMIT_VALUE',
-      payload: { limitValue: updatedLimitValue },
+      payload: updatedLimitValue,
     });
 
     expect(state).toEqual({ ...INITIAL_STATE, limitValue: updatedLimitValue });

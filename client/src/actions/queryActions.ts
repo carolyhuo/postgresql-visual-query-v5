@@ -75,6 +75,8 @@ export const CHANGE_DEFAULT_VALUE = 'CHANGE_DEFAULT_VALUE';
 export const ADD_FILTER_ROW = 'ADD_FILTER_ROW';
 export const REMOVE_FILTER_ROW = 'REMOVE_FILTER_ROW';
 export const UPDATE_COLUMN_FILTER = 'UPDATE_COLUMN_FILTER';
+export const ADD_CTE = 'ADD_CTE';
+export const REMOVE_CTE = 'REMOVE_CTE';
 
 type RootState = any; // Ideally replace 'any' with your actual root state type
 
@@ -287,6 +289,18 @@ export const resetQuery = (data: ResetQueryAction['payload']) => (dispatch: Disp
 export const updateSql = (sql: UpdateSqlAction['payload']) => ({ type: UPDATE_SQL, payload: sql });
 
 export const setActiveQuery = (data: SetActiveQueryAction['payload']) => ({ type: SET_ACTIVE_QUERY, payload: data });
+
+export const addCte = (name: string) => (dispatch: ThunkDispatch<RootState, unknown, QueryActions>) => {
+  const id = `cte-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  dispatch({ type: ADD_CTE, payload: { id, name } });
+  dispatch(generateSql());
+  return id;
+};
+
+export const removeCte = (id: string) => (dispatch: ThunkDispatch<RootState, unknown, QueryActions>) => {
+  dispatch({ type: REMOVE_CTE, payload: id });
+  dispatch(generateSql());
+};
 
 export const switchLimit = () => (dispatch: ThunkDispatch<RootState, unknown, QueryActions>) => {
   dispatch({ type: SWITCH_LIMIT });

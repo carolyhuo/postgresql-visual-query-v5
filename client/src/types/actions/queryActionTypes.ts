@@ -1,5 +1,6 @@
 import {
   ADD_COLUMN,
+  ADD_CTE,
   ADD_FILTER_ROW,
   ADD_JOIN,
   ADD_RESULT,
@@ -15,6 +16,7 @@ import {
   GENERATE_SQL,
   QUERYING,
   REMOVE_COLUMN,
+  REMOVE_CTE,
   REMOVE_FILTER_ROW,
   REMOVE_JOIN,
   REMOVE_ROWS,
@@ -55,12 +57,30 @@ import {
   PSQL_VERSION,
 } from '../../actions/hostActions';
 
-import { QueryColumnType, JoinType, QueryTableType, QueryType, SetType, UsingType, ResultType } from '../queryTypes';
-import { DatabaseTableType } from '../databaseTypes';
+import {
+  CTEType,
+  JoinType,
+  QueryColumnType,
+  QueryTableType,
+  QueryType,
+  ResultType,
+  SetType,
+  UsingType,
+} from '../queryTypes';
 
 export interface SetActiveQueryAction {
   type: typeof SET_ACTIVE_QUERY;
   payload: QueryType;
+}
+
+export interface AddCteAction {
+  type: typeof ADD_CTE;
+  payload: Pick<CTEType, 'id' | 'name'>;
+}
+
+export interface RemoveCteAction {
+  type: typeof REMOVE_CTE;
+  payload: string;
 }
 
 export interface AddColumnAction {
@@ -332,6 +352,8 @@ export interface AddResultFulfilledAction {
 // Combine all actions into QueryActions type
 export type QueryActions =
   | SetActiveQueryAction
+  | AddCteAction
+  | RemoveCteAction
   | AddColumnAction
   | ChangeQueryTypeAction
   | RemoveColumnAction

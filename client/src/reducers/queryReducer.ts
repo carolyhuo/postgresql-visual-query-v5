@@ -2,6 +2,7 @@ import _ from 'lodash';
 import randomColor from 'randomcolor';
 import {
   ADD_COLUMN,
+  ADD_CTE,
   ADD_JOIN,
   ADD_RESULT_FULFILLED,
   ADD_SET,
@@ -12,6 +13,7 @@ import {
   GENERATE_SQL,
   QUERYING,
   REMOVE_COLUMN,
+  REMOVE_CTE,
   REMOVE_JOIN,
   REMOVE_SET,
   REMOVE_TABLE,
@@ -90,6 +92,30 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
         ...state,
         ...activeQuery,
         queryName,
+      };
+    }
+    case ADD_CTE: {
+      const cteQuery = {
+        ..._.cloneDeep(INITIAL_STATE),
+        id: -1,
+        queryName: action.payload.name,
+      };
+
+      return {
+        ...state,
+        ctes: [
+          ...(state.ctes || []),
+          {
+            ...action.payload,
+            query: cteQuery,
+          },
+        ],
+      };
+    }
+    case REMOVE_CTE: {
+      return {
+        ...state,
+        ctes: (state.ctes || []).filter((cte) => cte.id !== action.payload),
       };
     }
     case ADD_COLUMN: {
@@ -730,34 +756,34 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
     case GENERATE_SQL: {
       try {
         if (state.queryType === 'SELECT') {
-          const query = buildQuery({ data: state, queries: action.payload.queries });
+          const selectSql = buildQuery({ data: state, queries: action.payload.queries });
           return {
             ...state,
-            sql: query,
+            sql: selectSql,
             error: null,
           };
         }
         if (state.queryType === 'DELETE') {
-          const query = buildDeleteQuery(state);
+          const deleteSql = buildDeleteQuery(state);
           return {
             ...state,
-            sql: query,
+            sql: deleteSql,
             error: null,
           };
         }
         if (state.queryType === 'INSERT') {
-          const query = buildInsertQuery(state);
+          const insertSql = buildInsertQuery(state);
           return {
             ...state,
-            sql: query,
+            sql: insertSql,
             error: null,
           };
         }
         if (state.queryType === 'UPDATE') {
-          const query = buildUpdateQuery(state);
+          const updateSql = buildUpdateQuery(state);
           return {
             ...state,
-            sql: query,
+            sql: updateSql,
             error: null,
           };
         }

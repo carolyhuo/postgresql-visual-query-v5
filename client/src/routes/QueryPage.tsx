@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Col, Container, Row } from 'reactstrap';
 import { Scrollbars } from 'react-custom-scrollbars-2';
 import { translations } from '../utils/translations';
 import QueryTable from '../components/QueryTable';
 import QueryTabs from '../components/QueryTabs';
+import QueryCteTabs from '../components/QueryCteTabs';
 import QueryButton from '../components/QueryButton';
 import DownloadSQLButton from '../components/DownloadSQLButton';
 import DownloadCSVButton from '../components/DownloadCSVButton';
@@ -15,8 +16,8 @@ import SearchBar from '../components/SearchBar';
 import DatabaseViewer from '../components/DatabaseViewer';
 import NavBar from '../components/NavBar';
 import TableView from '../components/TableView';
-import { useAppSelector, useAppDispatch } from '../hooks';
-import { QueryTableType, JoinType } from '../types/queryTypes';
+import { useAppDispatch, useAppSelector } from '../hooks';
+import { JoinType, QueryTableType } from '../types/queryTypes';
 import { addJoin, updateJoin } from '../actions/queryActions';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -24,24 +25,24 @@ import '../styles/grid-layout.css';
 import '../styles/reactflow.css';
 import _ from 'lodash';
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
   addEdge,
-  Panel,
-  Connection,
-  NodeTypes as ReactFlowNodeTypes,
-  EdgeTypes as ReactFlowEdgeTypes,
-  Edge as ReactFlowEdge,
-  MarkerType,
   applyNodeChanges,
-  NodeChange,
+  Background,
+  Connection,
+  Controls,
+  Edge as ReactFlowEdge,
+  EdgeTypes as ReactFlowEdgeTypes,
+  MarkerType,
+  MiniMap,
   Node,
-  Viewport,
+  NodeChange,
+  NodeTypes as ReactFlowNodeTypes,
+  Panel,
+  ReactFlow,
   ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -590,6 +591,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   return (
     <div className="mt-0 pr-2">
       <NavBar />
+      {queryType === 'SELECT' && <QueryCteTabs />}
       <ReactFlowProvider>
         <div ref={containerRef} className="grid-container">
           {['SELECT'].includes(queryType) && (
