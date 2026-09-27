@@ -12,8 +12,19 @@ import { getScalarFunctions, getAggregateFunctions } from '../utils/functionUtil
 import { translations } from '../utils/translations';
 
 const quoteIdentifier = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
-const rankingWindowFunctions = ['ROW_NUMBER', 'RANK', 'DENSE_RANK'];
-const otherWindowFunctions = ['LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE'];
+const NUMERIC_TYPES = ['integer', 'bigint', 'smallint', 'numeric', 'real', 'double precision'];
+const windowFunctions = [
+  'ROW_NUMBER',
+  'RANK',
+  'DENSE_RANK',
+  'LAG',
+  'LEAD',
+  'FIRST_VALUE',
+  'LAST_VALUE',
+  'COUNT',
+  'MIN',
+  'MAX',
+];
 
 const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; index: number }> = ({
   data,
@@ -33,9 +44,8 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
 
   const scalarFunctions = getScalarFunctions();
   const singleLineFunctions = getAggregateFunctions();
-  const windowFunctions = Array.from(
-    new Set([...rankingWindowFunctions, ...otherWindowFunctions, ...singleLineFunctions]),
-  );
+  const isNumeric = NUMERIC_TYPES.includes(data.data_type?.toLowerCase());
+  const availableWindowFunctions = isNumeric ? [...windowFunctions, 'SUM', 'AVG'] : windowFunctions;
   const windowColumnOptions = Array.from(
     new Map(
       columns
@@ -472,7 +482,7 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
               <CustomInput
                 type="checkbox"
                 id={`window-function-${id}`}
-                label={translations[language.code].queryBuilder.windowFunctionLabel}
+                label={translations[language.code].queryBuilder.enableWindowFunction}
                 checked={Boolean(data.is_window_function)}
                 onChange={(e) => {
                   const enabled = e.target.checked;
@@ -490,7 +500,7 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
                 disabled={!data.is_window_function}
               >
                 <option value="">{translations[language.code].queryBuilder.selectFunction}</option>
-                {windowFunctions.map((func) => (
+                {availableWindowFunctions.map((func) => (
                   <option key={func} value={func}>
                     {func}
                   </option>
@@ -508,7 +518,7 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
               className="form-control"
               disabled={!data.is_window_function}
             >
-              <option value="">{translations[language.code].queryBuilder.selectColumn}</option>
+              <option value="">{translations[language.code].queryBuilder.noWindowColumn}</option>
               {windowColumnOptions.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -531,7 +541,7 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
                 className="form-control"
                 disabled={!data.is_window_function}
               >
-                <option value="">{translations[language.code].queryBuilder.selectColumn}</option>
+                <option value="">{translations[language.code].queryBuilder.noWindowColumn}</option>
                 {windowColumnOptions.map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
