@@ -1,6 +1,13 @@
 import _ from 'lodash';
 import * as queryBuilder from '../../utils/queryBuilder';
+import { createEmptyColumn } from '../../utils/columnUtils';
 import { testData1, testData2, testData3, testData4 } from './testData';
+
+const createValidQueryData = () => {
+  const data = _.cloneDeep(testData1);
+  data.columns = data.columns.map((column) => createEmptyColumn(column));
+  return data;
+};
 
 describe('query builder', () => {
   test('add columns', () => {
@@ -700,5 +707,45 @@ describe('query builder', () => {
       + 'FETCH FIRST 10 ROWS ONLY;';
 
     expect(query).toEqual(expected);
+  });
+
+  test('adds CTEs before the main query and removes the inner semicolon', () => {
+    const cteQuery = createValidQueryData();
+    const data = createValidQueryData();
+    data.ctes = [{ id: 'cte_1', name: 'base_query', query: cteQuery }];
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(query).toBe(
+      'WITH base_query AS (\n'
+        + '  SELECT\n'
+        + '  amet.amet_kood, amet.nimetus, amet.kirjeldus\n'
+        + '  FROM public.amet\n'
+        + ')\n'
+        + 'SELECT\n'
+        + 'amet.amet_kood, amet.nimetus, amet.kirjeldus\n'
+        + 'FROM public.amet;',
+    );
+  });
+
+  test('builds nested CTEs recursively', () => {
+    const innerQuery = createValidQueryData();
+    const cteQuery = createValidQueryData();
+    cteQuery.ctes = [{ id: 'cte_2', name: 'inner_query', query: innerQuery }];
+    const data = createValidQueryData();
+    data.ctes = [{ id: 'cte_1', name: 'outer_query', query: cteQuery }];
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(query).toContain(
+      'WITH outer_query AS (\n'
+        + '  WITH inner_query AS (\n'
+        + '    SELECT\n'
+        + '    amet.amet_kood, amet.nimetus, amet.kirjeldus\n'
+        + '    FROM public.amet\n'
+        + '  )\n'
+        + '  SELECT\n'
+        + '  amet.amet_kood, amet.nimetus, amet.kirjeldus',
+    );
   });
 });

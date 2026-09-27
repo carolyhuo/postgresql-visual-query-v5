@@ -8,23 +8,10 @@ import { QueryColumnType } from '../types/queryTypes';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGripVertical } from '@fortawesome/free-solid-svg-icons';
 import { Draggable } from 'react-beautiful-dnd';
-import { getScalarFunctions, getAggregateFunctions } from '../utils/functionUtils';
+import { getScalarFunctions, getAggregateFunctions, getAvailableWindowFunctions } from '../utils/functionUtils';
 import { translations } from '../utils/translations';
 
 const quoteIdentifier = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
-const NUMERIC_TYPES = ['integer', 'bigint', 'smallint', 'numeric', 'real', 'double precision'];
-const windowFunctions = [
-  'ROW_NUMBER',
-  'RANK',
-  'DENSE_RANK',
-  'LAG',
-  'LEAD',
-  'FIRST_VALUE',
-  'LAST_VALUE',
-  'COUNT',
-  'MIN',
-  'MAX',
-];
 
 const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; index: number }> = ({
   data,
@@ -44,8 +31,7 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
 
   const scalarFunctions = getScalarFunctions();
   const singleLineFunctions = getAggregateFunctions();
-  const isNumeric = NUMERIC_TYPES.includes(data.data_type?.toLowerCase());
-  const availableWindowFunctions = isNumeric ? [...windowFunctions, 'SUM', 'AVG'] : windowFunctions;
+  const availableWindowFunctions = getAvailableWindowFunctions(data.data_type || '');
   const windowColumnOptions = Array.from(
     new Map(
       columns

@@ -2,7 +2,7 @@
  * PostgreSQL Query Builder Utility
  *
  * This module provides a comprehensive set of utilities for building PostgreSQL queries
- * using the squel query builder. It handles various SQL operations including:
+ * using the squel query builder. It handles various SQL operations, including:
  * - SELECT queries with complex joins
  * - INSERT operations
  * - UPDATE operations
@@ -43,7 +43,7 @@ const quoteIdentifier = (identifier: string): string => {
     reservedKeywordsArray.map((keyword: ReservedKeywordType) => keyword.word.toLowerCase()),
   );
 
-  // Check if it's a reserved word (case insensitive)
+  // Check if it's a reserved word (case-insensitive)
   if (reservedKeywords.has(identifier.toLowerCase())) {
     return `"${identifier}"`;
   }
@@ -77,7 +77,7 @@ const addOrder = (column: QueryColumnType, query: squel.PostgresSelect) => {
     return operators.some((op) => str.includes(op));
   };
 
-  // Helper function to add nulls position to order by clause
+  // Helper function to add null position to order by clause
   const addOrderWithNullsPosition = (field: string, direction: boolean) => {
     const orderClause = `${field} ${direction ? 'ASC' : 'DESC'}${column.column_nulls_position ? ` NULLS ${column.column_nulls_position}` : ''}`;
     query.order(orderClause, null, { dontQuote: true });
@@ -330,7 +330,7 @@ const addColumnsToQuery = (
         modifiedText = textVal.replace(queryRefRegex, (match, queryName) => {
           foundQueryRef = true;
 
-          // Find the referenced query (case insensitive)
+          // Find the referenced query (case-insensitive)
           const referencedQuery = queries.find((q) => q.queryName.toLowerCase() === queryName.trim().toLowerCase());
 
           if (referencedQuery) {
@@ -395,7 +395,7 @@ const addColumnsToQuery = (
     }
 
     // Only wrap in parentheses if we found an OR or AND token
-    // and the result isn't already wrapped in parentheses
+    // and the result isn't yet wrapped in parentheses
     if (hasOperator && !(result.startsWith('(') && result.endsWith(')'))) {
       result = `(${result.trim()})`;
     } else {
@@ -408,7 +408,7 @@ const addColumnsToQuery = (
   /**
    * 4) parseFilterCondition
    *    - The main function that combines tokenizeConditionString + buildConditionString.
-   *    - For a raw condition like "= 'test' OR ='test2'", it returns "table.col = 'test' OR table.col = 'test2'".
+   *    - For a raw condition like "= 'test' OR = 'test2'", it returns "table.col = 'test' OR table.col = 'test2'".
    *    - Now also supports query references like "IN {Query Name}" which get replaced with subqueries.
    */
   const parseFilterCondition = (condition: string, columnName: string, queries: QueryType[]) => {
@@ -1076,7 +1076,7 @@ export const buildQuery = ({
   data: QueryType;
   queries: QueryType[];
   isSetQuery?: boolean;
-}) => {
+}): string => {
   const query = squelPostgres.select({
     useAsForTableAliasNames: true,
     fieldAliasQuoteCharacter: '',
@@ -1101,11 +1101,26 @@ export const buildQuery = ({
     orderByString = addOrderByForSetQuery(queries);
   }
 
-  if (data.limit && data.limitValue) {
-    return `${`${query.toString() + setQueryString + orderByString}\n` + `FETCH FIRST ${data.limitValue} ROWS ${data.withTies ? 'WITH TIES;' : 'ONLY;'}`}`;
-  }
+  const mainSelectSql =
+    data.limit && data.limitValue
+      ? `${query.toString() + setQueryString + orderByString}\nFETCH FIRST ${data.limitValue} ROWS ${
+          data.withTies ? 'WITH TIES;' : 'ONLY;'
+        }`
+      : `${query}${setQueryString}${orderByString};`;
 
-  return `${query}${setQueryString}${orderByString};`;
+  const cteStrings = (data.ctes || [])
+    .filter((cte) => cte.name?.trim() && cte.query)
+    .map((cte) => {
+      const innerSql = buildQuery({ data: cte.query, queries }).trim().replace(/;$/, '');
+      const indentedSql = innerSql
+        .split('\n')
+        .map((line) => `  ${line}`)
+        .join('\n');
+      return `${quoteIdentifier(cte.name.trim())} AS (\n${indentedSql}\n)`;
+    });
+
+  const withClause = cteStrings.length > 0 ? `WITH ${cteStrings.join(',\n')}\n` : '';
+  return `${withClause}${mainSelectSql}`;
 };
 
 /**
