@@ -54,6 +54,7 @@ and run the client and server locally.
 * Add expressions
 * Add alias to column
 * Add aggregate function to column
+* Add window functions (ROW_NUMBER, RANK, LAG, SUM, etc.) with PARTITION BY and ORDER BY
 * Add filter condition to column
 * DISTINCT ON
 * ORDER BY ASC/DESC
