@@ -26,6 +26,7 @@ export type QueryType = {
   tables: QueryTableType[];
   using: UsingType[];
   withTies: boolean;
+  ctes?: CTEType[];
 };
 
 export type ResultType = {
@@ -153,7 +154,13 @@ export type QueryColumnType = {
   returningOnly: boolean;
   value_enabled: boolean;
   is_window_function?: boolean;
-  window_function_name?: string;     // e.g. 'RANK', 'DENSE_RANK', 'ROW_NUMBER' or 'SUM'
-  window_partition_by?: string;      // e.g. 'region' or name of the column
+  window_function_name?: string; // e.g. 'RANK', 'DENSE_RANK', 'ROW_NUMBER' or 'SUM'
+  window_partition_by?: string; // e.g. 'region' or name of the column
   window_order_by?: string;
 };
+
+export interface CTEType {
+  id: string; // unique ID, e.g. 'cte_1'
+  name: string; // user-defined name, e.g. 'big_cities'
+  query: QueryType; // CTE's own complete query (tables, columns, etc.)
+}
