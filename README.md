@@ -4,7 +4,9 @@ Application that allows users to visually create PostgreSQL SELECT, INSERT, UPDA
 
 ## Setup
 
-The setup for front-end is described at [client](../master/client) and back-end at [server](../master/server)
+See the [Local Development Setup Guide](docs/DEVELOPMENT.md) for step-by-step
+instructions to configure PostgreSQL, load the sample `world.sql` database,
+and run the client and server locally.
 
 ## Functionality
 

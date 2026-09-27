@@ -152,6 +152,10 @@ export const translations = {
       aliasLabel: 'Alias',
       tableLabel: 'Table',
       aggregateLabel: 'Aggregate function',
+      windowFunctionLabel: 'Window function',
+      partitionByLabel: 'PARTITION BY',
+      windowOrderByLabel: 'Window ORDER BY',
+      selectColumn: 'Select column',
       scalarLabel: 'Scalar function',
       sortLabel: 'Sort order',
       sortOrderLabel: 'Position in the sort order',
@@ -190,6 +194,12 @@ export const translations = {
       table: 'The source table for this column. More info: https://www.postgresql.org/docs/current/ddl-basics.html',
       aggregate:
         'Functions that operate on multiple rows and return a single result, like SUM, AVG, COUNT. NB! By applying this, GROUP BY is added automatically to necessary fields. More info: https://www.postgresql.org/docs/current/functions-aggregate.html',
+      'window-function':
+        'Functions that perform calculations across a related group of rows (a window), such as ROW_NUMBER, RANK, DENSE_RANK, or SUM() OVER (...). Unlike regular aggregate functions, window functions preserve individual rows and do not group them with GROUP BY. More info: https://www.postgresql.org/docs/14/functions-window.html',
+      'partition-by':
+        'Divides table rows into groups (partitions) where the window function is calculated independently. For example, choosing a department or region starts a ranking or running total over for each group. If left empty, the whole table is treated as one window. More info: https://www.postgresql.org/docs/14/queries-table-expressions.html#QUERIES-WINDOW',
+      'window-order-by':
+        'Defines the order of rows within the window for the calculation. This is essential for rankings (such as RANK) and running totals, where it determines the order in which values are accumulated. Note: this ordering affects only the window calculation, not the final order of query results. More info: https://www.postgresql.org/docs/14/queries-table-expressions.html#QUERIES-WINDOW',
       scalar:
         'Functions that operate on a single row and return a single value, like UPPER, LOWER, LENGTH. More info: https://www.postgresql.org/docs/current/functions.html',
       sort: 'Sort the results by this column. More info: https://www.postgresql.org/docs/current/queries-order.html',
@@ -370,6 +380,10 @@ export const translations = {
       aliasLabel: 'Alias',
       tableLabel: 'Tabel',
       aggregateLabel: 'Kokkuvõttefunktsioon',
+      windowFunctionLabel: 'Aknafunktsioon',
+      partitionByLabel: 'PARTITION BY',
+      windowOrderByLabel: 'Aknafunktsiooni ORDER BY',
+      selectColumn: 'Vali veerg',
       scalarLabel: 'Skalaarfunktsioon',
       sortLabel: 'Sorteerimise suund',
       sortOrderLabel: 'Sorteerimise järjekord',
@@ -408,6 +422,12 @@ export const translations = {
       table: 'Selle veeru lähtetabel. Rohkem infot: https://www.postgresql.org/docs/current/ddl-basics.html',
       aggregate:
         'Funktsioonid, mis töötavad mitme reaga ja tagastavad ühe tulemuse, nagu SUM, AVG, COUNT. NB! Väärtuse lisamisel rakendatakse vajalikele veergudele GROUP BY automaatselt. Rohkem infot: https://www.postgresql.org/docs/current/functions-aggregate.html',
+      'window-function':
+        'Funktsioonid, mis sooritavad arvutusi üle seotud ridade rühma (akna), nagu ROW_NUMBER, RANK, DENSE_RANK või SUM() OVER (...). NB! Erinevalt tavalisest kokkuvõttefunktsioonist säilitab aknafunktsioon kõik üksikud read ega koonda neid kokku (GROUP BY klauslit ei rakendata). Rohkem infot: https://www.postgresql.org/docs/14/functions-window.html',
+      'partition-by':
+        'Jaotab tabeli read rühmadeks (partitsioonideks), mille sees aknafunktsiooni arvutus toimub eraldiseisvalt. Näiteks määrates siia osakonna või regiooni, algab pingerida või kumulatiivne summa iga osakonna jaoks uuesti otsast peale. Kui väli jätta tühjaks, käsitletakse kogu tabelit ühe suure aknana. Rohkem infot: https://www.postgresql.org/docs/14/queries-table-expressions.html#QUERIES-WINDOW',
+      'window-order-by':
+        'Määrab ridade järjestuse akna sees, mille alusel arvutus läbi viiakse. See on hädavajalik pingeridade loomisel (nt RANK) ja kumulatiivsete summade arvutamisel (määrab, mis järjekorras väärtusi ajas liidetakse). NB! See sorteerimine mõjutab ainult aknafunktsiooni arvutust, mitte terve päringu lõplikku kuvamisjärjekorda. Rohkem infot: https://www.postgresql.org/docs/14/queries-table-expressions.html#QUERIES-WINDOW',
       scalar:
         'Funktsioonid, mis töötavad ühe reaga ja tagastavad ühe väärtuse, nagu UPPER, LOWER, LENGTH. Rohkem infot: https://www.postgresql.org/docs/current/functions.html',
       sort: 'Sorteeri tulemused selle veeru järgi. Rohkem infot: https://www.postgresql.org/docs/current/queries-order.html',

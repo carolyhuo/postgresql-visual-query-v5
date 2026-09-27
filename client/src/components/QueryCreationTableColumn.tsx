@@ -11,6 +11,10 @@ import { Draggable } from 'react-beautiful-dnd';
 import { getScalarFunctions, getAggregateFunctions } from '../utils/functionUtils';
 import { translations } from '../utils/translations';
 
+const quoteIdentifier = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
+const rankingWindowFunctions = ['ROW_NUMBER', 'RANK', 'DENSE_RANK'];
+const otherWindowFunctions = ['LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE'];
+
 const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; index: number }> = ({
   data,
   id,
@@ -29,6 +33,33 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
 
   const scalarFunctions = getScalarFunctions();
   const singleLineFunctions = getAggregateFunctions();
+  const windowFunctions = Array.from(
+    new Set([...rankingWindowFunctions, ...otherWindowFunctions, ...singleLineFunctions]),
+  );
+  const windowColumnOptions = Array.from(
+    new Map(
+      columns
+        .filter(
+          (column) =>
+            column.column_name &&
+            column.column_name !== '*' &&
+            column.column_name === column.column_name_original,
+        )
+        .map((column) => {
+          const tableRef = column.table_alias || column.table_name;
+          const columnRef = tableRef
+            ? `${quoteIdentifier(tableRef)}.${quoteIdentifier(column.column_name)}`
+            : quoteIdentifier(column.column_name);
+          const label = `${tableRef ? `${tableRef}.` : ''}${column.column_name}${
+            column.column_alias ? ` (${column.column_alias})` : ''
+          }`;
+
+          return [columnRef, label] as const;
+        }),
+    ).entries(),
+  );
+  const windowOrderDirection = data.window_order_by?.match(/\s+(ASC|DESC)$/i)?.[1]?.toUpperCase() || 'ASC';
+  const windowOrderColumn = data.window_order_by?.replace(/\s+(ASC|DESC)$/i, '') || '';
 
   const [conditionsData, setConditionsData] = useState<string[]>(data.column_conditions);
   const [showQuerySuggestions, setShowQuerySuggestions] = useState<boolean>(false);
@@ -270,6 +301,14 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
     dispatch(updateColumn(column));
   };
 
+  const updateWindowSettings = (
+    updates: Partial<
+      Pick<QueryColumnType, 'is_window_function' | 'window_function_name' | 'window_partition_by' | 'window_order_by'>
+    >,
+  ) => {
+    dispatch(updateColumn({ ..._.cloneDeep(data), ...updates }));
+  };
+
   useEffect(() => {
     if (!data.column_alias && !data.column_name && !data.table_name) {
       let column = _.cloneDeep(data);
@@ -425,6 +464,99 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Window function */}
+          <div style={{ minHeight: '56px', padding: '0.5rem', borderBottom: '1px solid #ddd' }}>
+            <div className="d-flex align-items-center">
+              <CustomInput
+                type="checkbox"
+                id={`window-function-${id}`}
+                label={translations[language.code].queryBuilder.windowFunctionLabel}
+                checked={Boolean(data.is_window_function)}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  updateWindowSettings({
+                    is_window_function: enabled,
+                    ...(enabled && !data.window_function_name ? { window_function_name: 'ROW_NUMBER' } : {}),
+                  });
+                }}
+              />
+              <select
+                aria-label={translations[language.code].queryBuilder.windowFunctionLabel}
+                value={data.window_function_name || ''}
+                onChange={(e) => updateWindowSettings({ window_function_name: e.target.value })}
+                className="form-control form-control-sm ml-1"
+                disabled={!data.is_window_function}
+              >
+                <option value="">{translations[language.code].queryBuilder.selectFunction}</option>
+                {windowFunctions.map((func) => (
+                  <option key={func} value={func}>
+                    {func}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Window PARTITION BY */}
+          <div style={{ minHeight: '56px', padding: '0.5rem', borderBottom: '1px solid #ddd' }}>
+            <select
+              aria-label={translations[language.code].queryBuilder.partitionByLabel}
+              value={data.window_partition_by || ''}
+              onChange={(e) => updateWindowSettings({ window_partition_by: e.target.value })}
+              className="form-control"
+              disabled={!data.is_window_function}
+            >
+              <option value="">{translations[language.code].queryBuilder.selectColumn}</option>
+              {windowColumnOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Window ORDER BY */}
+          <div style={{ minHeight: '56px', padding: '0.5rem', borderBottom: '1px solid #ddd' }}>
+            <div className="d-flex">
+              <select
+                aria-label={translations[language.code].queryBuilder.windowOrderByLabel}
+                value={windowOrderColumn}
+                onChange={(e) =>
+                  updateWindowSettings({
+                    window_order_by: e.target.value ? `${e.target.value} ${windowOrderDirection}` : '',
+                  })
+                }
+                className="form-control"
+                disabled={!data.is_window_function}
+              >
+                <option value="">{translations[language.code].queryBuilder.selectColumn}</option>
+                {windowColumnOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                color="light"
+                className="ml-1"
+                disabled={!data.is_window_function || !windowOrderColumn}
+                aria-label={
+                  windowOrderDirection === 'ASC'
+                    ? translations[language.code].queryBuilder.descL
+                    : translations[language.code].queryBuilder.ascL
+                }
+                onClick={() =>
+                  updateWindowSettings({
+                    window_order_by: `${windowOrderColumn} ${windowOrderDirection === 'ASC' ? 'DESC' : 'ASC'}`,
+                  })
+                }
+              >
+                {windowOrderDirection}
+              </Button>
+            </div>
           </div>
 
           {/* Scalar function */}
