@@ -193,6 +193,68 @@ describe('query reducer', () => {
     expect(restoredCteState.columns).toEqual([{ id: 1, column_name: 'edited_column' }]);
   });
 
+  test('SET_ACTIVE_TAB switches directly between CTE workspaces and preserves their state', () => {
+    const cte1 = {
+      id: 'cte-1',
+      name: 'first_cte',
+      query: {
+        ...INITIAL_STATE,
+        id: -1,
+        queryName: 'first_cte',
+        tables: [{ id: 1, table_name: 'first_table' }],
+      },
+    };
+    const cte2 = {
+      id: 'cte-2',
+      name: 'second_cte',
+      query: {
+        queryName: 'second_cte',
+        tables: [{ id: 2, table_name: 'second_table' }],
+      },
+    };
+    const mainTable = { id: 3, table_name: 'main_table' };
+    const initialState = {
+      ...INITIAL_STATE,
+      tables: [mainTable],
+      ctes: [cte1, cte2],
+    };
+    const firstCteState = queryReducer(initialState, {
+      type: SET_ACTIVE_TAB,
+      payload: cte1.id,
+    });
+    const editedFirstCteState = {
+      ...firstCteState,
+      tables: [{ id: 4, table_name: 'edited_first_table' }],
+      columns: [{ id: 5, column_name: 'first_output' }],
+      joins: [{ id: 6, conditions: [] }],
+    };
+
+    const secondCteState = queryReducer(editedFirstCteState, {
+      type: SET_ACTIVE_TAB,
+      payload: cte2.id,
+    });
+
+    expect(secondCteState.activeTab).toBe(cte2.id);
+    expect(secondCteState.tables).toEqual([{ id: 2, table_name: 'second_table' }]);
+    expect(secondCteState.columns).toEqual([]);
+    expect(secondCteState.joins).toEqual([]);
+    expect(secondCteState.ctes.map(({ id }) => id)).toEqual([cte1.id, cte2.id]);
+    expect(secondCteState.mainQueryBackup.tables).toEqual([mainTable]);
+    expect(secondCteState.ctes[0].query).toMatchObject({
+      tables: [{ id: 4, table_name: 'edited_first_table' }],
+      columns: [{ id: 5, column_name: 'first_output' }],
+      joins: [{ id: 6, conditions: [] }],
+    });
+
+    const returnToFirstByName = queryReducer(secondCteState, {
+      type: SET_ACTIVE_TAB,
+      payload: cte1.name,
+    });
+    expect(returnToFirstByName.activeTab).toBe(cte1.id);
+    expect(returnToFirstByName.tables).toEqual([{ id: 4, table_name: 'edited_first_table' }]);
+    expect(returnToFirstByName.columns).toEqual([{ id: 5, column_name: 'first_output' }]);
+  });
+
   test('SET_ACTIVE_TAB ignores the current or an unknown tab', () => {
     const state = { ...INITIAL_STATE, ctes: [] };
 

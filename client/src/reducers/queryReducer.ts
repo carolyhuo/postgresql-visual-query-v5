@@ -89,37 +89,76 @@ export const INITIAL_STATE: QueryType = {
 
 const switchActiveTab = (state: QueryType, targetTabId: string): QueryType => {
   const currentTabId = state.activeTab || 'main';
-  if (targetTabId === currentTabId) {
-    return state;
-  }
-
   const ctes = state.ctes || [];
-  const targetCte = targetTabId === 'main' ? undefined : ctes.find((cte) => cte.id === targetTabId);
+  const targetCte =
+    targetTabId === 'main'
+      ? undefined
+      : ctes.find((cte) => cte.id === targetTabId) || ctes.find((cte) => cte.name === targetTabId);
   if (targetTabId !== 'main' && !targetCte) {
     return state;
   }
 
-  const currentWorkspace = _.omit(state, ['ctes', 'activeTab', 'mainQueryBackup']);
+  const resolvedTargetTabId = targetCte?.id || 'main';
+  const currentCte =
+    currentTabId === 'main'
+      ? undefined
+      : ctes.find((cte) => cte.id === currentTabId) || ctes.find((cte) => cte.name === currentTabId);
+  const resolvedCurrentTabId = currentCte?.id || currentTabId;
+
+  if (resolvedTargetTabId === resolvedCurrentTabId) {
+    return state;
+  }
+
+  const currentWorkspace = _.omit(state, [
+    'ctes',
+    'activeTab',
+    'mainQueryBackup',
+    'id',
+    'queryName',
+  ]);
   let mainQueryBackup = state.mainQueryBackup || null;
   let updatedCtes = ctes;
 
-  if (currentTabId === 'main') {
-    mainQueryBackup = currentWorkspace;
-  } else {
+  if (resolvedCurrentTabId === 'main') {
+    mainQueryBackup = {
+      ..._.omit(state, ['ctes', 'activeTab', 'mainQueryBackup']),
+      ...currentWorkspace,
+    };
+  } else if (currentCte) {
     updatedCtes = ctes.map((cte) =>
-      cte.id === currentTabId ? { ...cte, query: currentWorkspace } : cte,
+      cte.id === currentCte.id
+        ? {
+            ...cte,
+            query: {
+              ..._.omit(INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup']),
+              ..._.omit(cte.query || {}, ['ctes', 'activeTab', 'mainQueryBackup']),
+              ...currentWorkspace,
+              id: cte.query?.id ?? -1,
+              queryName: cte.query?.queryName ?? cte.name,
+            },
+          }
+        : cte,
     );
   }
 
   const targetWorkspace =
-    targetTabId === 'main'
-      ? mainQueryBackup || _.omit(INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup'])
-      : _.omit(targetCte?.query || INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup']);
+    resolvedTargetTabId === 'main'
+      ? mainQueryBackup || INITIAL_STATE
+      : targetCte?.query || INITIAL_STATE;
+  const safeTargetWorkspace = {
+    ..._.omit(INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup', 'id', 'queryName']),
+    ..._.omit(targetWorkspace, ['ctes', 'activeTab', 'mainQueryBackup', 'id', 'queryName']),
+    columns: targetWorkspace?.columns || [],
+    joins: targetWorkspace?.joins || [],
+    sets: targetWorkspace?.sets || [],
+    tables: targetWorkspace?.tables || [],
+    using: targetWorkspace?.using || [],
+  };
 
   return {
     ...state,
-    ..._.omit(targetWorkspace, ['id', 'queryName']),
-    activeTab: targetTabId,
+    ...safeTargetWorkspace,
+    activeTab: resolvedTargetTabId,
     ctes: updatedCtes,
     mainQueryBackup,
   };

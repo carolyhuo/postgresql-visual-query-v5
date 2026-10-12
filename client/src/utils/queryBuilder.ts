@@ -54,6 +54,12 @@ const quoteIdentifier = (identifier: string): string => {
   return needsQuoting ? `"${identifier}"` : identifier;
 };
 
+const formatTableReference = (table: { table_name: string; table_schema?: string }): string => {
+  const tableName = quoteIdentifier(table.table_name);
+  const tableSchema = table.table_schema?.trim();
+  return tableSchema ? `${quoteIdentifier(tableSchema)}.${tableName}` : tableName;
+};
+
 /**
  * Initialize PostgreSQL flavor of squel query builder
  */
@@ -699,7 +705,7 @@ const addJoinsToQuery = (data: QueryType, query: squel.PostgresSelect) => {
       return;
     }
 
-    const tableName = `${quoteIdentifier(joinObj.main_table.table_schema)}.${quoteIdentifier(joinObj.main_table.table_name)}`;
+    const tableName = formatTableReference(joinObj.main_table);
     const tableAlias = joinObj.main_table.table_alias ? quoteIdentifier(joinObj.main_table.table_alias) : undefined;
 
     joinFn(tableName, tableAlias, on);
@@ -960,7 +966,7 @@ const addJoinsToQueryByDragAndDrop = (data: QueryType, query: squel.PostgresSele
     }
 
     const joinAlias = joinTarget.table_alias || undefined;
-    const joinRef = `${quoteIdentifier(joinTarget.table_schema)}.${quoteIdentifier(joinTarget.table_name)}`;
+    const joinRef = formatTableReference(joinTarget);
 
     const joinFn = getJoinFunction(join.type);
     const onCondition = conditions.join(' AND ');
@@ -1043,10 +1049,10 @@ const addTablesToQuery = (data: QueryType, query: squel.PostgresSelect, queries:
     }
 
     if (_.isEmpty(table.table_alias)) {
-      query.from(`${quoteIdentifier(table.table_schema)}.${quoteIdentifier(table.table_name)}`);
+      query.from(formatTableReference(table));
     } else {
       query.from(
-        `${quoteIdentifier(table.table_schema)}.${quoteIdentifier(table.table_name)}`,
+        formatTableReference(table),
         quoteIdentifier(table.table_alias),
       );
     }
@@ -1243,7 +1249,7 @@ const getUsingTables = (data: QueryType) => {
 
   usings.forEach((using) => {
     usingTables.push(
-      `${quoteIdentifier(using.main_table.table_schema)}.${quoteIdentifier(using.main_table.table_name)}`,
+      formatTableReference(using.main_table),
     );
   });
 
@@ -1360,7 +1366,7 @@ export const buildDeleteQuery = (data: QueryType) => {
     separator: '\n',
   });
 
-  query.from(`${quoteIdentifier(data.tables[0].table_schema)}.${quoteIdentifier(data.tables[0].table_name)}`);
+  query.from(formatTableReference(data.tables[0]));
 
   const usingTables = getUsingTables(data);
   const usingConditions = getUsingConditions(data);
@@ -1398,7 +1404,7 @@ export const buildInsertQuery = (data: QueryType) => {
       separator: '\n',
     });
 
-    query.into(`${quoteIdentifier(data.tables[0].table_schema)}.${quoteIdentifier(data.tables[0].table_name)}`);
+    query.into(formatTableReference(data.tables[0]));
 
     const columnString: string[] = [];
     data.columns.forEach((column) => {
@@ -1444,7 +1450,7 @@ export const buildUpdateQuery = (data: QueryType) => {
     separator: '\n',
   });
 
-  query.table(`${quoteIdentifier(data.tables[0].table_schema)}.${quoteIdentifier(data.tables[0].table_name)}`);
+  query.table(formatTableReference(data.tables[0]));
 
   addUpdateValuesToQuery(data, query);
 

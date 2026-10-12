@@ -787,6 +787,24 @@ describe('query builder', () => {
     expect(query).not.toContain('FROM .suured_linnad;');
   });
 
+  test.each([false, true])('uses an unqualified CTE reference in joins (drag-and-drop: %s)', (isDragAndDrop) => {
+    const data = _.cloneDeep(testData2);
+    data.columns = data.columns.map((column) => createEmptyColumn(column));
+    data.isDragAndDrop = isDragAndDrop;
+    data.joins[0].main_table = {
+      ...data.joins[0].main_table,
+      table_name: 'suurriigid',
+      table_schema: '',
+      table_type: 'CTE',
+    };
+    data.joins[0].conditions[0].main_table = data.joins[0].main_table;
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(query).toContain('INNER JOIN suurriigid');
+    expect(query).not.toContain('INNER JOIN .suurriigid');
+  });
+
   test('builds nested CTEs recursively', () => {
     const innerQuery = createValidQueryData();
     const cteQuery = createValidQueryData();

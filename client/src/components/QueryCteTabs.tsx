@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { addCte, removeCte, setActiveTab } from '../actions/queryActions';
+import { addCte, removeCte, SET_ACTIVE_TAB } from '../actions/queryActions';
 import { translations } from '../utils/translations';
 
 const QueryCteTabs: React.FC = () => {
@@ -25,7 +25,7 @@ const QueryCteTabs: React.FC = () => {
     }
 
     const newCteId = dispatch(addCte(name));
-    dispatch(setActiveTab(newCteId));
+    dispatch({ type: SET_ACTIVE_TAB, payload: newCteId });
   };
 
   const handleRemoveCte = (event: React.MouseEvent<HTMLButtonElement>, id: string) => {
@@ -39,7 +39,7 @@ const QueryCteTabs: React.FC = () => {
         type="button"
         className={`btn btn-sm rounded-0 ${activeTab === 'main' ? 'btn-secondary' : 'btn-light'}`}
         aria-pressed={activeTab === 'main'}
-        onClick={() => dispatch(setActiveTab('main'))}
+        onClick={() => dispatch({ type: SET_ACTIVE_TAB, payload: 'main' })}
       >
         {text.mainQuery}
       </button>
@@ -49,7 +49,7 @@ const QueryCteTabs: React.FC = () => {
             type="button"
             className={`btn btn-sm rounded-0 ${activeTab === cte.id ? 'btn-secondary' : 'btn-light'}`}
             aria-pressed={activeTab === cte.id}
-            onClick={() => dispatch(setActiveTab(cte.id))}
+            onClick={() => dispatch({ type: SET_ACTIVE_TAB, payload: cte.id })}
           >
             {text.ctePrefix} {cte.name}
           </button>

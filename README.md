@@ -1,6 +1,9 @@
 # Postgres Visual Query Builder v5
 
-Application that allows users to visually create PostgreSQL SELECT, INSERT, UPDATE and DELETE queries.
+Postgres Visual Query Builder 5 is a web application for building PostgreSQL
+`SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries visually. It provides a
+canvas-based query workspace, a generated-SQL editor, and query execution
+against a connected PostgreSQL database.
 
 ## Setup
 
@@ -17,6 +20,15 @@ and run the client and server locally.
 * Hide/view query menu
 * View queries as list
 * Use queries as subqueries
+
+### Common Table Expressions (CTEs)
+
+* Create and edit multiple CTEs in tabs alongside the main query
+* Keep each CTE's tables, columns, joins, and other query settings isolated from the main query and other CTEs
+* Generate `WITH` clauses from the saved CTE workspaces, including nested CTEs
+* Add a CTE as a virtual table from the sidebar and use its selected output columns in the main query or another CTE
+* Prevent a CTE from being added to its own workspace
+* Remove a CTE and clean up its references in the main query
 
 ### INSERT statement
 * Create INSERT statements
@@ -75,7 +87,7 @@ and run the client and server locally.
 ### Set operations
 * Add/remove set operations
 * Change order of set operations
-* Find UNION/UNION ALL/INTERSECT/EXCPEPT between queries
+* Combine queries with UNION/UNION ALL/INTERSECT/EXCEPT set operations
 
 ### Result
  
@@ -95,7 +107,6 @@ and run the client and server locally.
 * Change the language (English, Estonian)
 * Refresh the page without losing the built query
 * Save built queries for later use
-* Download generated SQL code
 * Download results as CSV files
 
 ## Pictures
