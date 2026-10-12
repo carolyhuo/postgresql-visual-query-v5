@@ -614,6 +614,11 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   return (
     <div className="mt-0 pr-2">
       <NavBar />
+      {queryType !== 'SELECT' && query.ctes?.length ? (
+        <Alert color="info" className="py-2 mb-2">
+          {translations[language.code].navBar.cteDmlNotice.replace('{statementType}', queryType)}
+        </Alert>
+      ) : null}
       {queryType === 'SELECT' && <QueryCteTabs />}
       <ReactFlowProvider>
         <div ref={containerRef} className="grid-container">

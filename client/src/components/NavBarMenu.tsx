@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Row, Input, Label, Col } from 'reactstrap';
+import { Row, Input, Label, Col, UncontrolledTooltip } from 'reactstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
 import _ from 'lodash';
 import { InputWithDeleteButton } from './InputWithDeleteButton';
 import { translations } from '../utils/translations';
@@ -75,7 +77,15 @@ export const NavBarMenu: React.FC<NavBarMenuProps> = ({ language }) => {
       <div className="col-auto pl-0 d-flex align-items-center">
         <Row form className="align-items-center">
           {/*TODO: Add change query type back and fix errors*/}
-          <Label for="changeQueryType">{translations[language.code].navBar.statementType}:</Label>
+          <Label for="changeQueryType" className="mr-1">
+            {translations[language.code].navBar.statementType}:
+          </Label>
+          <span id="statement-type-info" className="mr-2 text-muted" style={{ cursor: 'help' }}>
+            <FontAwesomeIcon icon={faQuestionCircle} />
+          </span>
+          <UncontrolledTooltip placement="top" target="statement-type-info">
+            {translations[language.code].navBar.statementTypeInfo}
+          </UncontrolledTooltip>
           <Col md={3}>
             <Input bsSize="sm" type="select" id="changeQueryType" onChange={handleTypeChange} value={queryType}>
               <option value="SELECT">SELECT</option>

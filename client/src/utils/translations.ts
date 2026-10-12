@@ -234,6 +234,10 @@ export const translations = {
     },
     navBar: {
       statementType: 'Statement Type',
+      statementTypeInfo:
+        'CTEs and Window Functions are analytical features available for SELECT queries only. They are not supported in DML (INSERT, UPDATE, DELETE) statements.',
+      cteDmlNotice:
+        'ℹ️ Notice: In this version, CTEs and Window Functions are supported for SELECT queries only. Switch back to SELECT mode to work with your CTEs.',
     },
   },
   est: {
@@ -470,6 +474,10 @@ export const translations = {
     },
     navBar: {
       statementType: 'Lause tüüp',
+      statementTypeInfo:
+        'Ühised tabeliavaldised (CTE) ja aknafunktsioonid on analüütilised vahendid, mis on toetatud üksnes andmete pärimisel (SELECT). Need ei ole toetatud andmemuudatuste (INSERT, UPDATE, DELETE) lausetes.',
+      cteDmlNotice:
+        'ℹ️ Teade: Selles versioonis on CTE-d ja aknafunktsioonid toetatud ainult SELECT päringutes. Lülitu tagasi SELECT režiimi, et oma CTE-dega edasi töötada.',
     },
   },
 };
