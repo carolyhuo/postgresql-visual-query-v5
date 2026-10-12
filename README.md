@@ -118,6 +118,11 @@ and run the client and server locally.
 
 ![Query creation page](./common/images/queryPage.png)
 
+### CTE and window function example
+
+![CTE and window function example: canvas and selected columns (1 of 2)](./common/images/cte1.png)
+![CTE and window function example: window settings and generated SQL (2 of 2)](./common/images/cte2.png)
+
 ## Licence
 
 MIT

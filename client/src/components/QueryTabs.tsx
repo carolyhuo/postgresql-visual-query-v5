@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Col, Container, Nav, NavItem, NavLink, Row, TabContent, TabPane } from 'reactstrap';
 import { useAppSelector } from '../hooks';
 import UsingList from './UsingList';
@@ -11,10 +11,17 @@ import { QueryCreationTable } from './QueryCreationTable';
 
 export const QueryTabs: React.FC = () => {
   const [activeTab, setActiveTab] = useState('1');
-  const { language, queryType } = useAppSelector((state) => ({
+  const { language, queryType, hasCtes } = useAppSelector((state) => ({
     language: state.settings.language,
     queryType: state.query.queryType,
+    hasCtes: Boolean(state.query.ctes && state.query.ctes.length > 0),
   }));
+
+  useEffect(() => {
+    if (hasCtes && activeTab === '3') {
+      setActiveTab('1');
+    }
+  }, [activeTab, hasCtes]);
 
   return (
     <div>
@@ -33,8 +40,18 @@ export const QueryTabs: React.FC = () => {
           <NavItem>
             <NavLink
               className={activeTab === '3' ? 'active' : ''}
+              disabled={hasCtes}
+              aria-disabled={hasCtes}
+              title={
+                hasCtes
+                  ? 'Hulgatehted (UNION) ei ole CTE-dega selles versioonis toetatud'
+                  : undefined
+              }
+              style={hasCtes ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               onClick={() => {
-                setActiveTab('3');
+                if (!hasCtes) {
+                  setActiveTab('3');
+                }
               }}
             >
               {translations[language.code].queryBuilder.setsH}

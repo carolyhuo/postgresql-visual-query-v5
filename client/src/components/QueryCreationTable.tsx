@@ -210,7 +210,7 @@ export const QueryCreationTable: React.FC<Record<string, never>> = () => {
   return (
     <div onClick={() => activeTooltip && setActiveTooltip(null)}>
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="query-table-container" style={{ display: 'flex', overflowX: 'auto' }}>
+        <div className="query-table-container" style={{ display: 'flex', overflowX: 'auto', width: '100%' }}>
           {/* Labels column */}
           <div
             className="labels-column"
