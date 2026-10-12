@@ -1143,7 +1143,7 @@ export const buildQuery = ({
       : `${query}${setQueryString}${orderByString};`;
 
   const cteStrings = (queryData.ctes || [])
-    .filter((cte) => cte.name?.trim() && cte.query)
+    .filter((cte) => cte?.name?.trim() && cte.query?.tables?.length)
     .map((cte) => {
       const innerSql = buildQuery({ data: cte.query, queries }).trim().replace(/;$/, '');
       const indentedSql = innerSql

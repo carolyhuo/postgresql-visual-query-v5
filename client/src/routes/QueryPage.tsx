@@ -18,7 +18,7 @@ import NavBar from '../components/NavBar';
 import TableView from '../components/TableView';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { JoinType, QueryTableType } from '../types/queryTypes';
-import { addJoin, addTable, updateJoin } from '../actions/queryActions';
+import { addJoin, addTable, UPDATE_TABLE_POSITIONS, updateJoin } from '../actions/queryActions';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import '../styles/grid-layout.css';
@@ -103,9 +103,11 @@ interface QueryBuilderProps {
 
 // Define viewport interface
 interface SavedFlowState {
-  nodes: Node[];
+  nodes: QueryFlowNode[];
   viewport: Viewport;
 }
+
+type QueryFlowNode = Node<{ table: QueryTableType; index: number; isDraggable: boolean }>;
 
 export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, queryType }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +118,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   // Get joins data from redux state
   const joins = useAppSelector((state) => state.query.joins);
   const query = useAppSelector((state) => state.query);
+  const flowStateKey = `flow-state-${query.id}-${query.activeTab || 'main'}`;
+  const legacyFlowStateKey = `flow-state-${query.id}`;
 
   // Track active edge ID
   const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null);
@@ -135,9 +139,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     [],
   );
 
-  // React Flow states with TypeScript errors bypassed
-  // @ts-ignore - bypass TypeScript errors for node state
-  const [nodes, setNodes] = useNodesState([]);
+  const [nodes, setNodes] = useNodesState<QueryFlowNode>([]);
   // @ts-ignore - bypass TypeScript errors for edge state
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -155,41 +157,50 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
 
   // Function to save flow state (nodes and viewport)
   const saveFlowState = useCallback(
-    (nodes: Node[], viewport: Viewport) => {
+    (nodes: QueryFlowNode[], viewport: Viewport) => {
       const state: SavedFlowState = {
         nodes,
         viewport,
       };
-      sessionStorage.setItem(`flow-state-${query.id}`, JSON.stringify(state));
+      sessionStorage.setItem(flowStateKey, JSON.stringify(state));
     },
-    [query.id],
+    [flowStateKey],
   );
 
   // Custom onNodesChange handler to save positions to sessionStorage
   const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      // @ts-ignore - bypass type error between React Flow's node types and setState
-      setNodes((nds) => {
-        const updated = applyNodeChanges(changes, nds);
+    (changes: NodeChange<QueryFlowNode>[]) => {
+      const updated = applyNodeChanges(changes, nodes);
+      setNodes(updated);
 
-        // Get viewport from instance and save complete state
-        if (reactFlowInstance.current) {
-          const viewport = reactFlowInstance.current.getViewport();
-          saveFlowState(updated, viewport);
+      if (reactFlowInstance.current) {
+        saveFlowState(updated, reactFlowInstance.current.getViewport());
+      }
+
+      const completedPositionChanges = changes.filter(
+        (change) => change.type === 'position' && change.dragging === false,
+      );
+      if (completedPositionChanges.length > 0) {
+        const positions = completedPositionChanges.flatMap((change) => {
+          if (!('id' in change)) {
+            return [];
+          }
+          const node = updated.find((item) => item.id === change.id);
+          const tableId = node?.data?.table.id;
+          return node?.position && typeof tableId === 'number' ? [{ id: tableId, position: node.position }] : [];
+        });
+        if (positions.length > 0) {
+          dispatch({ type: UPDATE_TABLE_POSITIONS, payload: positions });
         }
-
-        return updated;
-      });
+      }
     },
-    [setNodes, saveFlowState],
+    [dispatch, nodes, setNodes, saveFlowState],
   );
 
   // Handle viewport changes (pan & zoom)
   const onViewportChange = useCallback(
     (event: any, viewport: Viewport) => {
-      if (nodes.length > 0) {
-        saveFlowState(nodes, viewport);
-      }
+      saveFlowState(nodes, viewport);
     },
     [nodes, saveFlowState],
   );
@@ -199,8 +210,12 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     (instance: any) => {
       reactFlowInstance.current = instance;
 
+      const savedFlowState =
+        sessionStorage.getItem(flowStateKey) ||
+        ((query.activeTab || 'main') === 'main' ? sessionStorage.getItem(legacyFlowStateKey) : null);
+
       // Special handling for Main query (id = 0) to avoid ResizeObserver issues
-      if (query.id === 0 && tables.length > 0) {
+      if (query.id === 0 && tables.length > 0 && !savedFlowState) {
         // Use a short delay to ensure stable initialization
         setTimeout(() => {
           if (instance) {
@@ -209,7 +224,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
         }, 50);
       }
     },
-    [query.id, tables.length],
+    [flowStateKey, legacyFlowStateKey, query.activeTab, query.id, tables.length],
   );
 
   function parseHandleId(handleId: string) {
@@ -226,13 +241,10 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
 
   // Create nodes from tables
   useEffect(() => {
-    if (tables.length === 0) {
-      setNodes([]);
-      return;
-    }
-
     // Try to load saved flow state from sessionStorage
-    const saved = sessionStorage.getItem(`flow-state-${query.id}`);
+    const saved =
+      sessionStorage.getItem(flowStateKey) ||
+      ((query.activeTab || 'main') === 'main' ? sessionStorage.getItem(legacyFlowStateKey) : null);
     let savedState: SavedFlowState | null = null;
 
     if (saved) {
@@ -255,33 +267,44 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
       }
     }
 
+    if (tables.length === 0) {
+      setNodes([]);
+      if (savedState?.viewport && reactFlowInstance.current) {
+        debouncedViewportUpdate(savedState.viewport as Viewport);
+      }
+      return;
+    }
+
     // Calculate how many tables per row
     const tablesPerRow = Math.floor(containerWidth / gridConfig.horizontalSpacing);
 
     // Create nodes for each table
-    const newNodes = tables.map((table, index) => {
+    const newNodes: QueryFlowNode[] = [];
+    tables.forEach((table, index) => {
       // Check if we have a saved position for this table
       const savedNode = savedState?.nodes?.find((n) => n.id === `table-${table.id}`);
+      const savedPosition = savedNode?.position || table.position;
 
-      if (savedNode) {
+      if (savedPosition) {
         // If a saved position exists, use it
-        return {
+        newNodes.push({
           id: `table-${table.id}`,
           type: 'tableNode',
-          position: savedNode.position,
+          position: { ...savedPosition },
           data: {
             table,
             index,
             isDraggable: !['DELETE', 'UPDATE'].includes(queryType),
           },
           draggable: !['DELETE', 'UPDATE'].includes(queryType),
-        };
+        });
+        return;
       }
 
       // If no saved position, find the leftmost node
-      const rightMostNode = nodes.reduce((leftmost: Node, node: Node) => {
-        return node.position.x > leftmost.position.x ? node : leftmost;
-      }, nodes[0]);
+      const rightMostNode = newNodes.reduce<QueryFlowNode | null>((rightmost, node) => {
+        return !rightmost || node.position.x > rightmost.position.x ? node : rightmost;
+      }, null);
 
       // Place the new node to the right of the leftmost node
       const xPos = rightMostNode
@@ -291,7 +314,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
         ? rightMostNode.position.y
         : Math.floor(index / tablesPerRow) * gridConfig.verticalSpacing + 50;
 
-      return {
+      newNodes.push({
         id: `table-${table.id}`,
         type: 'tableNode',
         position: { x: xPos, y: yPos },
@@ -301,10 +324,9 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
           isDraggable: !['DELETE', 'UPDATE'].includes(queryType),
         },
         draggable: !['DELETE', 'UPDATE'].includes(queryType),
-      };
+      });
     });
 
-    // @ts-ignore - bypass TypeScript for node type assignment
     setNodes(newNodes);
 
     // If we have a saved viewport and instance is available, set it after a small delay
@@ -319,7 +341,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
         }, 100);
       }
     }
-  }, [tables, containerWidth, queryType, setNodes, query.id]);
+  }, [tables, containerWidth, queryType, setNodes, query.id, query.activeTab, flowStateKey, legacyFlowStateKey]);
 
   const getMarker = (joinType: string) => {
     const marker = {

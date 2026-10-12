@@ -1,5 +1,5 @@
 import { INITIAL_STATE, queryReducer } from '../../reducers/queryReducer';
-import { ADD_CTE, REMOVE_CTE, SET_ACTIVE_TAB } from '../../actions/queryActions';
+import { ADD_CTE, REMOVE_CTE, SET_ACTIVE_TAB, UPDATE_TABLE_POSITIONS } from '../../actions/queryActions';
 import { createEmptyColumn } from '../../utils/columnUtils';
 
 describe('query reducer', () => {
@@ -21,6 +21,10 @@ describe('query reducer', () => {
         queryName: 'suured_linnad',
         columns: [],
         tables: [],
+        joins: [],
+        sets: [],
+        using: [],
+        where: [],
       },
     });
   });
@@ -201,7 +205,7 @@ describe('query reducer', () => {
         ...INITIAL_STATE,
         id: -1,
         queryName: 'first_cte',
-        tables: [{ id: 1, table_name: 'first_table' }],
+        tables: [{ id: 1, table_name: 'first_table', position: { x: 125, y: 240 } }],
       },
     };
     const cte2 = {
@@ -224,7 +228,7 @@ describe('query reducer', () => {
     });
     const editedFirstCteState = {
       ...firstCteState,
-      tables: [{ id: 4, table_name: 'edited_first_table' }],
+      tables: [{ id: 4, table_name: 'edited_first_table', position: { x: 125, y: 240 } }],
       columns: [{ id: 5, column_name: 'first_output' }],
       joins: [{ id: 6, conditions: [] }],
     };
@@ -241,7 +245,7 @@ describe('query reducer', () => {
     expect(secondCteState.ctes.map(({ id }) => id)).toEqual([cte1.id, cte2.id]);
     expect(secondCteState.mainQueryBackup.tables).toEqual([mainTable]);
     expect(secondCteState.ctes[0].query).toMatchObject({
-      tables: [{ id: 4, table_name: 'edited_first_table' }],
+      tables: [{ id: 4, table_name: 'edited_first_table', position: { x: 125, y: 240 } }],
       columns: [{ id: 5, column_name: 'first_output' }],
       joins: [{ id: 6, conditions: [] }],
     });
@@ -251,8 +255,45 @@ describe('query reducer', () => {
       payload: cte1.name,
     });
     expect(returnToFirstByName.activeTab).toBe(cte1.id);
-    expect(returnToFirstByName.tables).toEqual([{ id: 4, table_name: 'edited_first_table' }]);
+    expect(returnToFirstByName.tables).toEqual([
+      { id: 4, table_name: 'edited_first_table', position: { x: 125, y: 240 } },
+    ]);
     expect(returnToFirstByName.columns).toEqual([{ id: 5, column_name: 'first_output' }]);
+    expect(secondCteState.ctes[0].query.tables[0].position).toEqual({ x: 125, y: 240 });
+    expect(secondCteState.ctes[0].query.tables[0]).not.toBe(cte1.query.tables[0]);
+  });
+
+  test('UPDATE_TABLE_POSITIONS persists canvas coordinates in query tables', () => {
+    const table = { id: 3, table_name: 'city', position: { x: 0, y: 0 } };
+    const state = { ...INITIAL_STATE, tables: [table] };
+
+    const nextState = queryReducer(state, {
+      type: UPDATE_TABLE_POSITIONS,
+      payload: [{ id: 3, position: { x: 420, y: 180 } }],
+    });
+
+    expect(nextState.tables[0].position).toEqual({ x: 420, y: 180 });
+    expect(state.tables[0].position).toEqual({ x: 0, y: 0 });
+  });
+
+  test('SET_ACTIVE_TAB supplies empty arrays for incomplete target CTE queries', () => {
+    const state = {
+      ...INITIAL_STATE,
+      ctes: [{ id: 'cte-empty', name: 'empty_cte', query: { queryName: 'empty_cte' } }],
+    };
+
+    const nextState = queryReducer(state, {
+      type: SET_ACTIVE_TAB,
+      payload: 'cte-empty',
+    });
+
+    expect(nextState.activeTab).toBe('cte-empty');
+    expect(nextState.tables).toEqual([]);
+    expect(nextState.columns).toEqual([]);
+    expect(nextState.joins).toEqual([]);
+    expect(nextState.sets).toEqual([]);
+    expect(nextState.using).toEqual([]);
+    expect(nextState.where).toEqual([]);
   });
 
   test('SET_ACTIVE_TAB ignores the current or an unknown tab', () => {

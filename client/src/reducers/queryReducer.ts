@@ -36,6 +36,7 @@ import {
   UPDATE_SETS_ORDER,
   UPDATE_SQL,
   UPDATE_TABLE,
+  UPDATE_TABLE_POSITIONS,
   UPDATE_VALIDITY,
   ADD_ROWS,
   REMOVE_ROWS,
@@ -109,21 +110,21 @@ const switchActiveTab = (state: QueryType, targetTabId: string): QueryType => {
     return state;
   }
 
-  const currentWorkspace = _.omit(state, [
+  const currentWorkspace = _.cloneDeep(_.omit(state, [
     'ctes',
     'activeTab',
     'mainQueryBackup',
     'id',
     'queryName',
-  ]);
+  ]));
   let mainQueryBackup = state.mainQueryBackup || null;
   let updatedCtes = ctes;
 
   if (resolvedCurrentTabId === 'main') {
-    mainQueryBackup = {
+    mainQueryBackup = _.cloneDeep({
       ..._.omit(state, ['ctes', 'activeTab', 'mainQueryBackup']),
       ...currentWorkspace,
-    };
+    });
   } else if (currentCte) {
     updatedCtes = ctes.map((cte) =>
       cte.id === currentCte.id
@@ -131,7 +132,7 @@ const switchActiveTab = (state: QueryType, targetTabId: string): QueryType => {
             ...cte,
             query: {
               ..._.omit(INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup']),
-              ..._.omit(cte.query || {}, ['ctes', 'activeTab', 'mainQueryBackup']),
+              ..._.cloneDeep(_.omit(cte.query || {}, ['ctes', 'activeTab', 'mainQueryBackup'])),
               ...currentWorkspace,
               id: cte.query?.id ?? -1,
               queryName: cte.query?.queryName ?? cte.name,
@@ -151,8 +152,9 @@ const switchActiveTab = (state: QueryType, targetTabId: string): QueryType => {
     columns: targetWorkspace?.columns || [],
     joins: targetWorkspace?.joins || [],
     sets: targetWorkspace?.sets || [],
-    tables: targetWorkspace?.tables || [],
+    tables: _.cloneDeep(targetWorkspace?.tables || []),
     using: targetWorkspace?.using || [],
+    where: targetWorkspace?.where || [],
   };
 
   return {
@@ -214,6 +216,12 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
         ..._.cloneDeep(INITIAL_STATE),
         id: -1,
         queryName: action.payload.name,
+        tables: [],
+        columns: [],
+        joins: [],
+        sets: [],
+        using: [],
+        where: [],
       };
 
       return {
@@ -582,6 +590,16 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
         columns: updatedColumns,
         tables,
         joins: updatedJoins,
+      };
+    }
+    case UPDATE_TABLE_POSITIONS: {
+      const positions = new Map(action.payload.map(({ id, position }) => [id, position]));
+      return {
+        ...state,
+        tables: state.tables.map((table) => {
+          const position = positions.get(table.id);
+          return position ? { ...table, position: { ...position } } : table;
+        }),
       };
     }
     case SWITCH_DISTINCT: {

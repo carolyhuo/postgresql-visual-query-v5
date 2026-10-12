@@ -4,7 +4,7 @@ import { createEmptyColumn } from './columnUtils';
 export const CTE_DRAG_DATA_TYPE = 'application/x-query-cte';
 
 export const createCteTable = (cte: CTEType): QueryTableType => {
-  const selectedColumns = cte.query.columns.filter((column) => column.display_in_query);
+  const selectedColumns = (cte.query?.columns || []).filter((column) => column?.display_in_query);
   const tableId = -1;
 
   const columns: QueryColumnType[] = selectedColumns.map((column, index) => {

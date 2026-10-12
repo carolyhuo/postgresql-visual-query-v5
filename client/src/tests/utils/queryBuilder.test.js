@@ -728,6 +728,27 @@ describe('query builder', () => {
     );
   });
 
+  test('skips CTEs without query tables when generating the WITH clause', () => {
+    const data = createValidQueryData();
+    data.ctes = [
+      {
+        id: 'cte_empty',
+        name: 'empty_cte',
+        query: { ...createValidQueryData(), tables: [], columns: [] },
+      },
+      {
+        id: 'cte_valid',
+        name: 'valid_cte',
+        query: createValidQueryData(),
+      },
+    ];
+
+    const sql = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(sql).toContain('valid_cte AS (');
+    expect(sql).not.toContain('empty_cte');
+  });
+
   test('builds the active CTE from the canvas and the outer query from the main backup', () => {
     const mainQuery = createValidQueryData();
     const activeCteWorkspace = createValidQueryData();

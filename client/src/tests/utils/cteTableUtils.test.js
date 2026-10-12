@@ -1,6 +1,16 @@
 import { createCteTable } from '../../utils/cteTableUtils';
 
 describe('createCteTable', () => {
+  test('creates an empty virtual table when query columns are missing', () => {
+    const table = createCteTable({
+      id: 'cte-empty',
+      name: 'empty_cte',
+      query: {},
+    });
+
+    expect(table.columns).toEqual([]);
+  });
+
   test('creates a virtual table from only the CTE output columns', () => {
     const cte = {
       id: 'cte-1',

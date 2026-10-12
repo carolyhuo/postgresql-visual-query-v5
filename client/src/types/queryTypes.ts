@@ -28,6 +28,7 @@ export type QueryType = {
   subquerySql: string;
   tables: QueryTableType[];
   using: UsingType[];
+  where?: unknown[];
   withTies: boolean;
 };
 
@@ -89,6 +90,7 @@ export type JoinType = {
 
 export type QueryTableType = {
   id: number;
+  position?: { x: number; y: number };
   table_alias: string;
   table_name: string;
   table_schema: string;

@@ -44,6 +44,7 @@ import {
   UPDATE_SETS_ORDER,
   UPDATE_SQL,
   UPDATE_TABLE,
+  UPDATE_TABLE_POSITIONS,
   UPDATE_USING,
   UPDATE_VALIDITY,
 } from '../../actions/queryActions';
@@ -135,6 +136,11 @@ export interface RemoveTableAction {
 export interface UpdateTableAction {
   type: typeof UPDATE_TABLE;
   payload: QueryTableType;
+}
+
+export interface UpdateTablePositionsAction {
+  type: typeof UPDATE_TABLE_POSITIONS;
+  payload: Array<{ id: number; position: { x: number; y: number } }>;
 }
 
 export interface AddJoinAction {
@@ -370,6 +376,7 @@ export type QueryActions =
   | AddTableAction
   | RemoveTableAction
   | UpdateTableAction
+  | UpdateTablePositionsAction
   | AddJoinAction
   | RemoveJoinAction
   | UpdateJoinAction
