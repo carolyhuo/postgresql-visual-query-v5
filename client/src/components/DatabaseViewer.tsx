@@ -2,13 +2,16 @@ import React from 'react';
 import { Scrollbars } from 'react-custom-scrollbars-2';
 import _ from 'lodash';
 import DatabaseTable from './DatabaseTable';
+import CteSidebarTable from './CteSidebarTable';
 import { filterTable } from '../utils/filterTable';
 import { useAppSelector } from '../hooks';
 import { DatabaseTableType } from '../types/databaseTypes';
-import { QueryTableType, QueryColumnType } from '../types/queryTypes';
+import { QueryTableType } from '../types/queryTypes';
 import { createEmptyColumn } from '../utils/columnUtils';
+import { translations } from '../utils/translations';
 
 export const DatabaseViewer: React.FC = () => {
+  const language = useAppSelector((state) => state.settings.language);
   const {
     tables: databaseTables,
     selectedSchema,
@@ -16,7 +19,7 @@ export const DatabaseViewer: React.FC = () => {
     columns,
     searchExpr,
   } = useAppSelector((state) => state.database);
-  const { tables: queryTables, queryType } = useAppSelector((state) => state.query);
+  const { tables: queryTables, queryType, ctes = [], activeTab } = useAppSelector((state) => state.query);
 
   const constructData = (table: DatabaseTableType): QueryTableType => {
     // Create a QueryTableType based on the DatabaseTableType
@@ -128,6 +131,21 @@ export const DatabaseViewer: React.FC = () => {
               )
             );
           })}
+          {ctes.length > 0 && (
+            <section className="mt-3">
+              <h6 className="d-flex align-items-center">
+                {translations[language.code].sideBar.cteSection}
+              </h6>
+              {ctes.map((cte) => (
+                <CteSidebarTable
+                  key={cte.id}
+                  cte={cte}
+                  checked={queryTables.some((table) => table.table_type === 'CTE' && table.table_name === cte.name)}
+                  active={(activeTab || 'main') === cte.id}
+                />
+              ))}
+            </section>
+          )}
         </div>
       </Scrollbars>
     </div>

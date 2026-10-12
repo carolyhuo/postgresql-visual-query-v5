@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { addCte, removeCte } from '../actions/queryActions';
+import { addCte, removeCte, setActiveTab } from '../actions/queryActions';
 import { translations } from '../utils/translations';
 
 const QueryCteTabs: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { ctes, language } = useAppSelector((state) => ({
+  const { ctes, language, activeTab } = useAppSelector((state) => ({
     ctes: state.query.ctes || [],
     language: state.settings.language,
+    activeTab: state.query.activeTab || 'main',
   }));
-  const [selectedCteId, setSelectedCteId] = useState<string | null>(null);
   const text = translations[language.code].queryBuilder;
 
   const handleAddCte = () => {
@@ -25,24 +25,21 @@ const QueryCteTabs: React.FC = () => {
     }
 
     const newCteId = dispatch(addCte(name));
-    setSelectedCteId(newCteId);
+    dispatch(setActiveTab(newCteId));
   };
 
   const handleRemoveCte = (event: React.MouseEvent<HTMLButtonElement>, id: string) => {
     event.stopPropagation();
     dispatch(removeCte(id));
-    if (selectedCteId === id) {
-      setSelectedCteId(null);
-    }
   };
 
   return (
     <div className="d-flex align-items-center flex-wrap border-bottom mb-2">
       <button
         type="button"
-        className={`btn btn-sm rounded-0 ${selectedCteId === null ? 'btn-secondary' : 'btn-light'}`}
-        aria-pressed={selectedCteId === null}
-        onClick={() => setSelectedCteId(null)}
+        className={`btn btn-sm rounded-0 ${activeTab === 'main' ? 'btn-secondary' : 'btn-light'}`}
+        aria-pressed={activeTab === 'main'}
+        onClick={() => dispatch(setActiveTab('main'))}
       >
         {text.mainQuery}
       </button>
@@ -50,15 +47,15 @@ const QueryCteTabs: React.FC = () => {
         <div key={cte.id} className="d-flex align-items-center">
           <button
             type="button"
-            className={`btn btn-sm rounded-0 ${selectedCteId === cte.id ? 'btn-secondary' : 'btn-light'}`}
-            aria-pressed={selectedCteId === cte.id}
-            onClick={() => setSelectedCteId(cte.id)}
+            className={`btn btn-sm rounded-0 ${activeTab === cte.id ? 'btn-secondary' : 'btn-light'}`}
+            aria-pressed={activeTab === cte.id}
+            onClick={() => dispatch(setActiveTab(cte.id))}
           >
             {text.ctePrefix} {cte.name}
           </button>
           <button
             type="button"
-            className={`btn btn-sm rounded-0 ${selectedCteId === cte.id ? 'btn-secondary' : 'btn-light'}`}
+            className={`btn btn-sm rounded-0 ${activeTab === cte.id ? 'btn-secondary' : 'btn-light'}`}
             aria-label={`${text.removeCte}: ${cte.name}`}
             onClick={(event) => handleRemoveCte(event, cte.id)}
           >

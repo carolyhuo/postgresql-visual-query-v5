@@ -28,22 +28,39 @@ const QueryTableHeader: React.FC<QueryTableHeaderProps> = ({
   handleRemoveTable,
 }) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const isCte = data.table_type === 'CTE';
 
   const togglePopover = () => {
     setPopoverOpen(!popoverOpen);
   };
 
   return (
-    <CardTitle className="d-flex pb-1 mb-0 border-bottom">
+    <CardTitle
+      className="d-flex pb-1 mb-0 border-bottom"
+      style={
+        isCte
+          ? { backgroundColor: '#ede9fe', borderColor: '#c4b5fd', borderBottomColor: '#c4b5fd' }
+          : undefined
+      }
+    >
       <div className="px-1 flex-fill d-flex">
         <Button
           outline
-          color="info"
+          color={isCte ? 'link' : 'info'}
           id={target}
           type="button"
           className="align-self-center btn-block p-0 px-1 text-left text-truncate"
+          style={isCte ? { color: '#4c1d95', borderColor: '#c4b5fd', textDecoration: 'none' } : undefined}
         >
-          {data.table_alias ? `${data.table_name} (${data.table_alias})` : `${data.table_name}`}
+          {data.table_alias ? `${data.table_name} (${data.table_alias})` : data.table_name}
+          {isCte && (
+            <span
+              className="badge ml-2"
+              style={{ backgroundColor: '#7c3aed', color: '#fff', fontSize: '10px' }}
+            >
+              CTE
+            </span>
+          )}
         </Button>
         <UncontrolledTooltip placement="top" target={target} className="text-truncate">
           {data.table_schema}
@@ -179,7 +196,10 @@ const QueryTable: React.FC<QueryTableProps> = React.memo(({ data, id }) => {
   );
 
   return (
-    <Card className="d-inline-flex pb-2  position-relative">
+    <Card
+      className="d-inline-flex pb-2 position-relative"
+      style={data.table_type === 'CTE' ? { borderColor: '#c4b5fd', borderWidth: '1.5px' } : undefined}
+    >
       <QueryTableHeader
         target={id}
         data={data}

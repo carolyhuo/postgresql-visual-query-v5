@@ -728,6 +728,65 @@ describe('query builder', () => {
     );
   });
 
+  test('builds the active CTE from the canvas and the outer query from the main backup', () => {
+    const mainQuery = createValidQueryData();
+    const activeCteWorkspace = createValidQueryData();
+    activeCteWorkspace.tables[0].table_name = 'cities';
+    activeCteWorkspace.columns.forEach((column) => {
+      column.table_name = 'cities';
+    });
+
+    const data = {
+      ...activeCteWorkspace,
+      activeTab: 'cte_1',
+      mainQueryBackup: mainQuery,
+      ctes: [
+        {
+          id: 'cte_1',
+          name: 'suured_linnad',
+          query: {
+            ...createValidQueryData(),
+            columns: [],
+            tables: [],
+          },
+        },
+      ],
+    };
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(query).toContain(
+      'WITH suured_linnad AS (\n'
+        + '  SELECT\n'
+        + '  cities.amet_kood, cities.nimetus, cities.kirjeldus\n'
+        + '  FROM public.cities\n'
+        + ')',
+    );
+    expect(query).toContain(
+      'SELECT\n'
+        + 'amet.amet_kood, amet.nimetus, amet.kirjeldus\n'
+        + 'FROM public.amet;',
+    );
+    expect(query).not.toContain('suured_linnad AS (\n  SELECT\n)');
+  });
+
+  test('uses a CTE table as an unqualified FROM source', () => {
+    const data = createValidQueryData();
+    data.tables[0].table_name = 'suured_linnad';
+    data.tables[0].table_schema = '';
+    data.tables[0].table_type = 'CTE';
+    data.columns.forEach((column) => {
+      column.table_name = 'suured_linnad';
+      column.table_schema = '';
+    });
+    data.ctes = [{ id: 'cte_1', name: 'suured_linnad', query: createValidQueryData() }];
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(query).toContain('FROM suured_linnad;');
+    expect(query).not.toContain('FROM .suured_linnad;');
+  });
+
   test('builds nested CTEs recursively', () => {
     const innerQuery = createValidQueryData();
     const cteQuery = createValidQueryData();

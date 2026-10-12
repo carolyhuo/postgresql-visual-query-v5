@@ -1,5 +1,7 @@
 export type QueryType = {
+  activeTab?: string;
   columns: QueryColumnType[];
+  ctes?: CTEType[];
   defaultValue: string;
   distinct: boolean;
   error: string | null;
@@ -12,10 +14,11 @@ export type QueryType = {
   lastTableId: number;
   limit: boolean;
   limitValue: number;
-  queryType: string;
-  queryValid: boolean;
+  mainQueryBackup?: QueryType | null;
   querying: boolean;
   queryName: string;
+  queryType: string;
+  queryValid: boolean;
   result: any;
   returning: boolean;
   rows: number;
@@ -26,7 +29,6 @@ export type QueryType = {
   tables: QueryTableType[];
   using: UsingType[];
   withTies: boolean;
-  ctes?: CTEType[];
 };
 
 export type ResultType = {

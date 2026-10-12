@@ -1,5 +1,5 @@
 import { INITIAL_STATE, queryReducer } from '../../reducers/queryReducer';
-import { ADD_CTE, REMOVE_CTE } from '../../actions/queryActions';
+import { ADD_CTE, REMOVE_CTE, SET_ACTIVE_TAB } from '../../actions/queryActions';
 import { createEmptyColumn } from '../../utils/columnUtils';
 
 describe('query reducer', () => {
@@ -33,6 +33,171 @@ describe('query reducer', () => {
     const state = queryReducer(stateWithCte, { type: REMOVE_CTE, payload: 'cte-1' });
 
     expect(state.ctes).toEqual([]);
+  });
+
+  test('REMOVE_CTE removes its tables, selected columns, and joins from the main query', () => {
+    const cteTable = {
+      id: 4,
+      table_name: 'suured_linnad',
+      table_schema: '',
+      table_type: 'CTE',
+    };
+    const cteColumn = {
+      id: 5,
+      table_id: 4,
+      table_name: 'suured_linnad',
+      table_schema: '',
+    };
+    const join = {
+      id: 1,
+      main_table: { id: 1, table_name: 'city' },
+      conditions: [
+        {
+          id: 1,
+          main_table: { id: 1, table_name: 'city' },
+          secondary_table: cteTable,
+        },
+      ],
+    };
+    const cte = {
+      id: 'cte-1',
+      name: 'suured_linnad',
+      query: { ...INITIAL_STATE, id: -1 },
+    };
+    const mainQuery = {
+      ...INITIAL_STATE,
+      tables: [{ id: 1, table_name: 'city', table_type: 'BASE TABLE' }, cteTable],
+      columns: [cteColumn],
+      joins: [join],
+    };
+    const state = {
+      ...mainQuery,
+      activeTab: 'main',
+      ctes: [cte],
+      mainQueryBackup: mainQuery,
+    };
+
+    const nextState = queryReducer(state, { type: REMOVE_CTE, payload: 'cte-1' });
+
+    expect(nextState.tables).toEqual([{ id: 1, table_name: 'city', table_type: 'BASE TABLE' }]);
+    expect(nextState.columns).toEqual([]);
+    expect(nextState.joins).toEqual([]);
+    expect(nextState.mainQueryBackup.tables).toEqual([
+      { id: 1, table_name: 'city', table_type: 'BASE TABLE' },
+    ]);
+    expect(nextState.mainQueryBackup.columns).toEqual([]);
+    expect(nextState.mainQueryBackup.joins).toEqual([]);
+    expect(nextState.ctes).toEqual([]);
+  });
+
+  test('closing the active CTE returns to main and cleans its saved table references', () => {
+    const cte = {
+      id: 'cte-1',
+      name: 'suured_linnad',
+      query: { ...INITIAL_STATE, id: -1 },
+    };
+    const cteTable = {
+      id: 2,
+      table_name: 'suured_linnad',
+      table_schema: '',
+      table_type: 'CTE',
+    };
+    const state = {
+      ...INITIAL_STATE,
+      activeTab: 'cte-1',
+      tables: [{ id: 7, table_name: 'city', table_type: 'BASE TABLE' }],
+      ctes: [cte],
+      mainQueryBackup: {
+        ...INITIAL_STATE,
+        tables: [cteTable],
+        columns: [{ id: 1, table_id: 2, table_name: 'suured_linnad', table_schema: '' }],
+      },
+    };
+
+    const nextState = queryReducer(state, { type: REMOVE_CTE, payload: 'cte-1' });
+
+    expect(nextState.activeTab).toBe('main');
+    expect(nextState.tables).toEqual([]);
+    expect(nextState.columns).toEqual([]);
+    expect(nextState.mainQueryBackup.tables).toEqual([]);
+    expect(nextState.mainQueryBackup.columns).toEqual([]);
+    expect(nextState.ctes).toEqual([]);
+  });
+
+  test('SET_ACTIVE_TAB saves the main query and loads the selected CTE workspace', () => {
+    const mainTable = { id: 1, table_name: 'main_table' };
+    const cteTable = { id: 2, table_name: 'cte_table' };
+    const cte = {
+      id: 'cte-1',
+      name: 'cte_one',
+      query: {
+        ...INITIAL_STATE,
+        id: -1,
+        tables: [cteTable],
+      },
+    };
+    const state = {
+      ...INITIAL_STATE,
+      tables: [mainTable],
+      ctes: [cte],
+    };
+
+    const nextState = queryReducer(state, {
+      type: SET_ACTIVE_TAB,
+      payload: 'cte-1',
+    });
+
+    expect(nextState.activeTab).toBe('cte-1');
+    expect(nextState.tables).toEqual([cteTable]);
+    expect(nextState.id).toBe(state.id);
+    expect(nextState.ctes).toHaveLength(1);
+    expect(nextState.mainQueryBackup.tables).toEqual([mainTable]);
+  });
+
+  test('SET_ACTIVE_TAB saves CTE edits and restores the main query', () => {
+    const cte = {
+      id: 'cte-1',
+      name: 'cte_one',
+      query: {
+        ...INITIAL_STATE,
+        id: -1,
+        tables: [{ id: 2, table_name: 'initial_cte_table' }],
+      },
+    };
+    const state = {
+      ...INITIAL_STATE,
+      tables: [{ id: 1, table_name: 'main_table' }],
+      ctes: [cte],
+    };
+    const cteState = queryReducer(state, {
+      type: SET_ACTIVE_TAB,
+      payload: 'cte-1',
+    });
+    const editedCteState = {
+      ...cteState,
+      tables: [{ id: 3, table_name: 'edited_cte_table' }],
+      columns: [{ id: 1, column_name: 'edited_column' }],
+    };
+
+    const mainState = queryReducer(editedCteState, {
+      type: SET_ACTIVE_TAB,
+      payload: 'main',
+    });
+    const restoredCteState = queryReducer(mainState, {
+      type: SET_ACTIVE_TAB,
+      payload: 'cte-1',
+    });
+
+    expect(mainState.tables).toEqual([{ id: 1, table_name: 'main_table' }]);
+    expect(restoredCteState.tables).toEqual([{ id: 3, table_name: 'edited_cte_table' }]);
+    expect(restoredCteState.columns).toEqual([{ id: 1, column_name: 'edited_column' }]);
+  });
+
+  test('SET_ACTIVE_TAB ignores the current or an unknown tab', () => {
+    const state = { ...INITIAL_STATE, ctes: [] };
+
+    expect(queryReducer(state, { type: SET_ACTIVE_TAB, payload: 'main' })).toBe(state);
+    expect(queryReducer(state, { type: SET_ACTIVE_TAB, payload: 'missing-cte' })).toBe(state);
   });
 
   test('ADD_RESULT_REJECTED adds query error to state', () => {

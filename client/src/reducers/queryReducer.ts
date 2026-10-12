@@ -4,6 +4,7 @@ import {
   ADD_COLUMN,
   ADD_CTE,
   ADD_JOIN,
+  ADD_RESULT_REJECTED,
   ADD_RESULT_FULFILLED,
   ADD_SET,
   ADD_TABLE,
@@ -45,6 +46,7 @@ import {
   ADD_FILTER_ROW,
   REMOVE_FILTER_ROW,
   UPDATE_COLUMN_FILTER,
+  SET_ACTIVE_TAB,
 } from '../actions/queryActions';
 import { buildQuery, buildDeleteQuery, buildInsertQuery, buildUpdateQuery } from '../utils/queryBuilder';
 import { QueryType } from '../types/queryTypes';
@@ -54,32 +56,106 @@ import { createEmptyColumn } from '../utils/columnUtils';
 
 export const INITIAL_STATE: QueryType = {
   id: 0,
+  activeTab: 'main',
   columns: [],
-  queryType: 'SELECT',
-  tables: [],
+  ctes: [],
+  defaultValue: 'DEFAULT',
   distinct: false,
-  returning: false,
-  limit: false,
-  limitValue: 50,
-  withTies: false,
-  sql: '',
-  result: null,
-  joins: [],
-  using: [],
   error: null,
+  filterRows: 1,
+  fromQuery: false,
+  isDragAndDrop: true,
+  joins: [],
   lastColumnId: 0,
   lastTableId: 0,
+  limit: false,
+  limitValue: 50,
+  mainQueryBackup: null,
   querying: false,
   queryName: 'Main',
+  queryType: 'SELECT',
   queryValid: true,
-  sets: [],
+  result: null,
+  returning: false,
   rows: 1,
-  filterRows: 1,
-  isDragAndDrop: true,
-  fromQuery: false,
+  sets: [],
+  sql: '',
   subqueryId: 0,
   subquerySql: '',
-  defaultValue: 'DEFAULT',
+  tables: [],
+  using: [],
+  withTies: false,
+};
+
+const switchActiveTab = (state: QueryType, targetTabId: string): QueryType => {
+  const currentTabId = state.activeTab || 'main';
+  if (targetTabId === currentTabId) {
+    return state;
+  }
+
+  const ctes = state.ctes || [];
+  const targetCte = targetTabId === 'main' ? undefined : ctes.find((cte) => cte.id === targetTabId);
+  if (targetTabId !== 'main' && !targetCte) {
+    return state;
+  }
+
+  const currentWorkspace = _.omit(state, ['ctes', 'activeTab', 'mainQueryBackup']);
+  let mainQueryBackup = state.mainQueryBackup || null;
+  let updatedCtes = ctes;
+
+  if (currentTabId === 'main') {
+    mainQueryBackup = currentWorkspace;
+  } else {
+    updatedCtes = ctes.map((cte) =>
+      cte.id === currentTabId ? { ...cte, query: currentWorkspace } : cte,
+    );
+  }
+
+  const targetWorkspace =
+    targetTabId === 'main'
+      ? mainQueryBackup || _.omit(INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup'])
+      : _.omit(targetCte?.query || INITIAL_STATE, ['ctes', 'activeTab', 'mainQueryBackup']);
+
+  return {
+    ...state,
+    ..._.omit(targetWorkspace, ['id', 'queryName']),
+    activeTab: targetTabId,
+    ctes: updatedCtes,
+    mainQueryBackup,
+  };
+};
+
+const removeCteTableReferences = (query: QueryType, cteName: string): QueryType => {
+  const removedTables = query.tables.filter(
+    (table) => table.table_type === 'CTE' && table.table_name === cteName,
+  );
+  const removedTableIds = new Set(removedTables.map((table) => table.id));
+  const isRemovedTableReference = (
+    table: { id?: number; table_name?: string; table_schema?: string } | null | undefined,
+  ) =>
+    !!table &&
+    ((table.id !== undefined && removedTableIds.has(table.id)) ||
+      (table.table_name === cteName && (!table.table_schema || table.table_schema === '')));
+
+  return {
+    ...query,
+    tables: query.tables.filter((table) => !removedTableIds.has(table.id)),
+    columns: query.columns.filter(
+      (column) =>
+        !removedTableIds.has(column.table_id) &&
+        !(column.table_name === cteName && (!column.table_schema || column.table_schema === '')),
+    ),
+    joins: query.joins.filter(
+      (join) =>
+        !isRemovedTableReference(join.main_table) &&
+        !join.conditions.some(
+          (condition) =>
+            isRemovedTableReference(condition.main_table) ||
+            isRemovedTableReference(condition.secondary_table),
+        ),
+    ),
+    using: query.using.filter((using) => !isRemovedTableReference(using.main_table)),
+  };
 };
 
 export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_STATE, action: QueryActions) => {
@@ -113,10 +189,25 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
       };
     }
     case REMOVE_CTE: {
+      const removedCte = (state.ctes || []).find((cte) => cte.id === action.payload);
+      const stateOnMain =
+        state.activeTab === action.payload ? switchActiveTab(state, 'main') : state;
+      const mainQueryBackup = removedCte && stateOnMain.mainQueryBackup
+        ? removeCteTableReferences(stateOnMain.mainQueryBackup, removedCte.name)
+        : stateOnMain.mainQueryBackup;
+      const cleanedState =
+        stateOnMain.activeTab === 'main' && removedCte
+          ? removeCteTableReferences(stateOnMain, removedCte.name)
+          : stateOnMain;
+
       return {
-        ...state,
-        ctes: (state.ctes || []).filter((cte) => cte.id !== action.payload),
+        ...cleanedState,
+        mainQueryBackup,
+        ctes: (cleanedState.ctes || []).filter((cte) => cte.id !== action.payload),
       };
+    }
+    case SET_ACTIVE_TAB: {
+      return switchActiveTab(state, action.payload);
     }
     case ADD_COLUMN: {
       const baseColumn = _.cloneDeep(action.payload);
@@ -706,7 +797,6 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
         joins: filteredJoins,
       };
     }
-
     case ADD_RESULT_FULFILLED: {
       // Limit number of rows kept in Redux state to prevent performance issues
       // Store only the first 1000 rows in state, but keep the total count
@@ -803,7 +893,7 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
         sql: action.payload,
       };
     }
-    case `ADD_RESULT_REJECTED`: {
+    case ADD_RESULT_REJECTED: {
       return {
         ...state,
         error: action.payload,

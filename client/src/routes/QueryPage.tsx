@@ -18,7 +18,7 @@ import NavBar from '../components/NavBar';
 import TableView from '../components/TableView';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { JoinType, QueryTableType } from '../types/queryTypes';
-import { addJoin, updateJoin } from '../actions/queryActions';
+import { addJoin, addTable, updateJoin } from '../actions/queryActions';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import '../styles/grid-layout.css';
@@ -51,6 +51,7 @@ import TableNode from '../components/TableNode';
 // @ts-ignore - component will be created later
 import JoinEdge from '../components/JoinEdge';
 import { logout } from '../actions/hostActions';
+import { createCteTable, CTE_DRAG_DATA_TYPE } from '../utils/cteTableUtils';
 
 export const SideBar: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -606,6 +607,18 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
                 onNodesChange={handleNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'copy';
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const cteId = event.dataTransfer.getData(CTE_DRAG_DATA_TYPE);
+                  const cte = query.ctes?.find((item) => item.id === cteId);
+                  if (cte) {
+                    dispatch(addTable(createCteTable(cte)));
+                  }
+                }}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 fitView

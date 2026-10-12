@@ -25,6 +25,7 @@ import {
   REMOVE_USING,
   RESET_QUERY,
   SET_ACTIVE_QUERY,
+  SET_ACTIVE_TAB,
   SET_LIMIT_VALUE,
   SWITCH_DISTINCT,
   SWITCH_FROM_QUERY,
@@ -71,6 +72,11 @@ import {
 export interface SetActiveQueryAction {
   type: typeof SET_ACTIVE_QUERY;
   payload: QueryType;
+}
+
+export interface SetActiveTabAction {
+  type: typeof SET_ACTIVE_TAB;
+  payload: string;
 }
 
 export interface AddCteAction {
@@ -352,6 +358,7 @@ export interface AddResultFulfilledAction {
 // Combine all actions into QueryActions type
 export type QueryActions =
   | SetActiveQueryAction
+  | SetActiveTabAction
   | AddCteAction
   | RemoveCteAction
   | AddColumnAction

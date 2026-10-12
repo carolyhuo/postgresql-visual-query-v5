@@ -35,6 +35,7 @@ export const translations = {
       VIEW: 'View',
       FOREIGN: 'Foreign Table',
       MATERIALIZED_VIEW: 'Materialized View',
+      cteSection: 'Common Table Expressions (CTE)',
     },
     saveQuery: {
       buttonText: 'Save Query',
@@ -270,6 +271,7 @@ export const translations = {
       VIEW: 'VAADE',
       FOREIGN: 'VÄLINE',
       MATERIALIZED_VIEW: 'MATERIALISEERITUD VAADE',
+      cteSection: 'Ühised tabeliavaldised (CTE)',
     },
     saveQuery: {
       buttonText: 'Salvesta päring',

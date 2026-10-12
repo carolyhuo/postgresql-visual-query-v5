@@ -1032,6 +1032,16 @@ const buildSetQuery = (data: QueryType, queries: QueryType[]) => {
  */
 const addTablesToQuery = (data: QueryType, query: squel.PostgresSelect, queries: QueryType[]) => {
   const addTable = (table: QueryTableType) => {
+    if (table.table_type === 'CTE') {
+      const cteName = quoteIdentifier(table.table_name);
+      if (_.isEmpty(table.table_alias)) {
+        query.from(cteName);
+      } else {
+        query.from(cteName, quoteIdentifier(table.table_alias));
+      }
+      return;
+    }
+
     if (_.isEmpty(table.table_alias)) {
       query.from(`${quoteIdentifier(table.table_schema)}.${quoteIdentifier(table.table_name)}`);
     } else {
@@ -1061,6 +1071,23 @@ const addTablesToQuery = (data: QueryType, query: squel.PostgresSelect, queries:
   }
 };
 
+const getQueryForSql = (data: QueryType): QueryType => {
+  const activeTab = data.activeTab || 'main';
+  if (activeTab === 'main' || !data.mainQueryBackup) {
+    return data;
+  }
+
+  const activeWorkspace = _.omit(data, ['ctes', 'activeTab', 'mainQueryBackup']);
+  const ctes = (data.ctes || []).map((cte) =>
+    cte.id === activeTab ? { ...cte, query: activeWorkspace } : cte,
+  );
+
+  return {
+    ...data.mainQueryBackup,
+    ctes,
+  };
+};
+
 /**
  * Main query builder function that orchestrates the creation of a complete SELECT query
  * @param data The query configuration object
@@ -1077,6 +1104,7 @@ export const buildQuery = ({
   queries: QueryType[];
   isSetQuery?: boolean;
 }): string => {
+  const queryData = getQueryForSql(data);
   const query = squelPostgres.select({
     useAsForTableAliasNames: true,
     fieldAliasQuoteCharacter: '',
@@ -1085,16 +1113,16 @@ export const buildQuery = ({
     separator: '\n',
   });
 
-  if (data.distinct) {
+  if (queryData.distinct) {
     query.distinct();
   }
 
   if (queries) {
-    addColumnsToQuery(data, query, queries, isSetQuery);
+    addColumnsToQuery(queryData, query, queries, isSetQuery);
   }
-  addTablesToQuery(data, query, queries);
+  addTablesToQuery(queryData, query, queries);
 
-  const setQueryString = buildSetQuery(data, queries).replace(/;$/, '');
+  const setQueryString = buildSetQuery(queryData, queries).replace(/;$/, '');
 
   let orderByString = '';
   if (setQueryString.length > 0) {
@@ -1102,13 +1130,13 @@ export const buildQuery = ({
   }
 
   const mainSelectSql =
-    data.limit && data.limitValue
-      ? `${query.toString() + setQueryString + orderByString}\nFETCH FIRST ${data.limitValue} ROWS ${
-          data.withTies ? 'WITH TIES;' : 'ONLY;'
+    queryData.limit && queryData.limitValue
+      ? `${query.toString() + setQueryString + orderByString}\nFETCH FIRST ${queryData.limitValue} ROWS ${
+          queryData.withTies ? 'WITH TIES;' : 'ONLY;'
         }`
       : `${query}${setQueryString}${orderByString};`;
 
-  const cteStrings = (data.ctes || [])
+  const cteStrings = (queryData.ctes || [])
     .filter((cte) => cte.name?.trim() && cte.query)
     .map((cte) => {
       const innerSql = buildQuery({ data: cte.query, queries }).trim().replace(/;$/, '');
