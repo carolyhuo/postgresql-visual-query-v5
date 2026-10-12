@@ -131,7 +131,7 @@ export const DatabaseViewer: React.FC = () => {
               )
             );
           })}
-          {ctes.length > 0 && (
+          {queryType === 'SELECT' && ctes.length > 0 && (
             <section className="mt-3">
               <h6 className="d-flex align-items-center">
                 {translations[language.code].sideBar.cteSection}

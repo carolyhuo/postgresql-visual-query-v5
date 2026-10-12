@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Col, Container, Nav, NavItem, NavLink, Row, TabContent, TabPane } from 'reactstrap';
+import { Col, Container, Nav, NavItem, NavLink, Row, TabContent, TabPane, UncontrolledTooltip } from 'reactstrap';
 import { useAppSelector } from '../hooks';
 import UsingList from './UsingList';
 import { translations } from '../utils/translations';
@@ -38,24 +38,35 @@ export const QueryTabs: React.FC = () => {
             </NavLink>
           </NavItem>
           <NavItem>
-            <NavLink
-              className={activeTab === '3' ? 'active' : ''}
-              disabled={hasCtes}
-              aria-disabled={hasCtes}
-              title={
-                hasCtes
-                  ? 'Hulgatehted (UNION) ei ole CTE-dega selles versioonis toetatud'
-                  : undefined
-              }
-              style={hasCtes ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-              onClick={() => {
-                if (!hasCtes) {
-                  setActiveTab('3');
-                }
-              }}
+            <span
+              id="set-operations-tab-tooltip-target"
+              style={{ display: 'inline-flex' }}
             >
-              {translations[language.code].queryBuilder.setsH}
-            </NavLink>
+              <NavLink
+                className={activeTab === '3' ? 'active' : ''}
+                disabled={hasCtes}
+                aria-disabled={hasCtes}
+                style={hasCtes ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                onClick={() => {
+                  if (!hasCtes) {
+                    setActiveTab('3');
+                  }
+                }}
+              >
+                {translations[language.code].queryBuilder.setsH}
+              </NavLink>
+            </span>
+            {hasCtes && (
+              <UncontrolledTooltip
+                placement="top"
+                target="set-operations-tab-tooltip-target"
+                delay={{ show: 0, hide: 0 }}
+              >
+                {language.code === 'est'
+                  ? 'Hulgatehted (UNION, INTERSECT, EXCEPT) on välja lülitatud, kui päringus kasutatakse CTE-sid.'
+                  : 'Set operations (UNION, INTERSECT, EXCEPT) are disabled when CTEs are used in the query.'}
+              </UncontrolledTooltip>
+            )}
           </NavItem>
         </Nav>
       )}

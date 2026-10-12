@@ -199,6 +199,9 @@ const removeCteTableReferences = (query: QueryType, cteName: string): QueryType 
   };
 };
 
+const removeAllCteTableReferences = (query: QueryType, ctes: QueryType['ctes'] = []) =>
+  ctes.reduce((cleanedQuery, cte) => removeCteTableReferences(cleanedQuery, cte.name), query);
+
 export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_STATE, action: QueryActions) => {
   switch (action.type) {
     case SET_ACTIVE_QUERY: {
@@ -317,6 +320,34 @@ export const queryReducer: Reducer<QueryType, QueryActions> = (state = INITIAL_S
       };
     }
     case CHANGE_QUERY_TYPE: {
+      if (action.payload !== 'SELECT') {
+        const mainState = (state.activeTab || 'main') === 'main' ? state : switchActiveTab(state, 'main');
+        const selectStateBackup =
+          mainState.queryType === 'SELECT'
+            ? _.cloneDeep(_.omit(mainState, ['selectStateBackup']))
+            : mainState.selectStateBackup;
+        const cleanedState = removeAllCteTableReferences(mainState, mainState.ctes);
+        const mainQueryBackup = cleanedState.mainQueryBackup
+          ? removeAllCteTableReferences(cleanedState.mainQueryBackup, cleanedState.ctes)
+          : cleanedState.mainQueryBackup;
+
+        return {
+          ...cleanedState,
+          activeTab: 'main',
+          mainQueryBackup,
+          selectStateBackup,
+          queryType: action.payload,
+        };
+      }
+
+      if (state.queryType !== 'SELECT' && state.selectStateBackup) {
+        return {
+          ..._.cloneDeep(_.omit(state.selectStateBackup, ['selectStateBackup'])),
+          selectStateBackup: null,
+          queryType: 'SELECT',
+        };
+      }
+
       return {
         ...state,
         queryType: action.payload,

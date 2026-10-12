@@ -22,6 +22,7 @@ export type QueryType = {
   result: any;
   returning: boolean;
   rows: number;
+  selectStateBackup?: QueryType | null;
   sets: SetType[];
   sql: string;
   subqueryId: number;

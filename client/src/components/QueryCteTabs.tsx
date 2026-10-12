@@ -5,12 +5,17 @@ import { translations } from '../utils/translations';
 
 const QueryCteTabs: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { ctes, language, activeTab } = useAppSelector((state) => ({
+  const { ctes, language, activeTab, queryType } = useAppSelector((state) => ({
     ctes: state.query.ctes || [],
     language: state.settings.language,
     activeTab: state.query.activeTab || 'main',
+    queryType: state.query.queryType,
   }));
   const text = translations[language.code].queryBuilder;
+
+  if (queryType !== 'SELECT') {
+    return null;
+  }
 
   const handleAddCte = () => {
     const enteredName = window.prompt(text.cteNamePrompt);

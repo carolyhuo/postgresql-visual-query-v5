@@ -1,5 +1,11 @@
 import { INITIAL_STATE, queryReducer } from '../../reducers/queryReducer';
-import { ADD_CTE, REMOVE_CTE, SET_ACTIVE_TAB, UPDATE_TABLE_POSITIONS } from '../../actions/queryActions';
+import {
+  ADD_CTE,
+  CHANGE_QUERY_TYPE,
+  REMOVE_CTE,
+  SET_ACTIVE_TAB,
+  UPDATE_TABLE_POSITIONS,
+} from '../../actions/queryActions';
 import { createEmptyColumn } from '../../utils/columnUtils';
 
 describe('query reducer', () => {
@@ -261,6 +267,81 @@ describe('query reducer', () => {
     expect(returnToFirstByName.columns).toEqual([{ id: 5, column_name: 'first_output' }]);
     expect(secondCteState.ctes[0].query.tables[0].position).toEqual({ x: 125, y: 240 });
     expect(secondCteState.ctes[0].query.tables[0]).not.toBe(cte1.query.tables[0]);
+  });
+
+  test('changing to a DML statement returns to main and removes CTE table references', () => {
+    const cteTable = {
+      id: 2,
+      table_name: 'cte_one',
+      table_schema: '',
+      table_type: 'CTE',
+    };
+    const cte = {
+      id: 'cte-1',
+      name: 'cte_one',
+      query: {
+        ...INITIAL_STATE,
+        id: -1,
+        tables: [{ id: 3, table_name: 'source_table', table_type: 'BASE TABLE' }],
+      },
+    };
+    const join = {
+      id: 1,
+      main_table: { id: 1, table_name: 'city', table_type: 'BASE TABLE' },
+      conditions: [
+        {
+          id: 1,
+          main_table: { id: 1, table_name: 'city', table_type: 'BASE TABLE' },
+          secondary_table: cteTable,
+        },
+      ],
+    };
+    const state = {
+      ...INITIAL_STATE,
+      activeTab: 'cte-1',
+      tables: [{ id: 3, table_name: 'editing_table', table_type: 'BASE TABLE' }],
+      ctes: [cte],
+      mainQueryBackup: {
+        ...INITIAL_STATE,
+        tables: [{ id: 1, table_name: 'city', table_type: 'BASE TABLE' }, cteTable],
+        columns: [{ id: 4, table_id: 2, table_name: 'cte_one', table_schema: '' }],
+        joins: [join],
+      },
+    };
+
+    const nextState = queryReducer(state, {
+      type: CHANGE_QUERY_TYPE,
+      payload: 'UPDATE',
+    });
+
+    expect(nextState.queryType).toBe('UPDATE');
+    expect(nextState.activeTab).toBe('main');
+    expect(nextState.tables).toEqual([{ id: 1, table_name: 'city', table_type: 'BASE TABLE' }]);
+    expect(nextState.columns).toEqual([]);
+    expect(nextState.joins).toEqual([]);
+    expect(nextState.mainQueryBackup.tables).toEqual([
+      { id: 1, table_name: 'city', table_type: 'BASE TABLE' },
+    ]);
+    expect(nextState.mainQueryBackup.columns).toEqual([]);
+    expect(nextState.mainQueryBackup.joins).toEqual([]);
+    expect(nextState.ctes[0].query.tables).toEqual([
+      { id: 3, table_name: 'editing_table', table_type: 'BASE TABLE' },
+    ]);
+
+    const restoredState = queryReducer(nextState, {
+      type: CHANGE_QUERY_TYPE,
+      payload: 'SELECT',
+    });
+
+    expect(restoredState.queryType).toBe('SELECT');
+    expect(restoredState.activeTab).toBe('main');
+    expect(restoredState.tables).toEqual([
+      { id: 1, table_name: 'city', table_type: 'BASE TABLE' },
+      cteTable,
+    ]);
+    expect(restoredState.columns).toEqual([{ id: 4, table_id: 2, table_name: 'cte_one', table_schema: '' }]);
+    expect(restoredState.joins).toEqual([join]);
+    expect(restoredState.selectStateBackup).toBeNull();
   });
 
   test('UPDATE_TABLE_POSITIONS persists canvas coordinates in query tables', () => {
@@ -1272,9 +1353,13 @@ describe('query reducer', () => {
       payload: 'DELETE',
     });
 
-    expect(state).toEqual({
+    expect(state).toMatchObject({
       ...INITIAL_STATE,
       queryType: 'DELETE',
+    });
+    expect(state.selectStateBackup).toMatchObject({
+      ...INITIAL_STATE,
+      queryType: 'SELECT',
     });
 
     state = queryReducer(state, {
@@ -1282,10 +1367,11 @@ describe('query reducer', () => {
       payload: 'SELECT',
     });
 
-    expect(state).toEqual({
+    expect(state).toMatchObject({
       ...INITIAL_STATE,
       queryType: 'SELECT',
     });
+    expect(state.selectStateBackup).toBeNull();
   });
 
   test('CHANGE_DEFAULT_VALUE changes default value', () => {
