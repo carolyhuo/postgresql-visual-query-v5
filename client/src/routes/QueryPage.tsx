@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Col, Container, Row } from 'reactstrap';
+import { Alert, Button, Col, Container, Row, UncontrolledTooltip } from 'reactstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 import { Scrollbars } from 'react-custom-scrollbars-2';
+import { Parser } from 'node-sql-parser';
 import { translations } from '../utils/translations';
 import QueryTable from '../components/QueryTable';
 import QueryTabs from '../components/QueryTabs';
@@ -18,7 +21,14 @@ import NavBar from '../components/NavBar';
 import TableView from '../components/TableView';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { JoinType, QueryTableType } from '../types/queryTypes';
-import { addJoin, addTable, UPDATE_TABLE_POSITIONS, updateJoin } from '../actions/queryActions';
+import {
+  addJoin,
+  addTable,
+  generateSql,
+  setActiveQuery,
+  UPDATE_TABLE_POSITIONS,
+  updateJoin,
+} from '../actions/queryActions';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import '../styles/grid-layout.css';
@@ -52,6 +62,7 @@ import TableNode from '../components/TableNode';
 import JoinEdge from '../components/JoinEdge';
 import { logout } from '../actions/hostActions';
 import { createCteTable, CTE_DRAG_DATA_TYPE } from '../utils/cteTableUtils';
+import { mapSqlAstToQueryState } from '../utils/sqlToCanvas';
 
 export const SideBar: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -118,6 +129,18 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   // Get joins data from redux state
   const joins = useAppSelector((state) => state.query.joins);
   const query = useAppSelector((state) => state.query);
+  const sql = query.sql;
+  const databaseMetadata = useAppSelector((state) => state.database);
+  const [applySqlFeedback, setApplySqlFeedback] = useState<{ type: 'success' | 'danger'; message: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (applySqlFeedback?.type !== 'success') {
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => setApplySqlFeedback(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [applySqlFeedback]);
   const flowStateKey = `flow-state-${query.id}-${query.activeTab || 'main'}`;
   const legacyFlowStateKey = `flow-state-${query.id}`;
 
@@ -153,6 +176,44 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     defaultWidth: 250,
     verticalSpacing: 200,
     horizontalSpacing: 300,
+  };
+
+  const handleApplySqlToCanvas = () => {
+    try {
+      const ast = new Parser().astify(sql, { database: 'Postgresql' });
+      console.log('Parsed AST:', ast);
+      const sourceQuery =
+        query.activeTab && query.activeTab !== 'main' && query.mainQueryBackup
+          ? query.mainQueryBackup
+          : query;
+      const cleanSlateQuery = {
+        ...sourceQuery,
+        activeTab: 'main',
+        tables: [],
+        columns: [],
+        joins: [],
+        ctes: [],
+        mainQueryBackup: null,
+        selectStateBackup: null,
+        sets: [],
+        using: [],
+        where: [],
+      };
+      const mappedQuery = mapSqlAstToQueryState(ast, cleanSlateQuery, {
+        tables: databaseMetadata.tables,
+        columns: databaseMetadata.columns,
+        constraints: databaseMetadata.constraints,
+      });
+      dispatch(setActiveQuery(mappedQuery));
+      dispatch(generateSql());
+      setApplySqlFeedback({
+        type: 'success',
+        message: translations[language.code].queryBuilder.applyToCanvasSuccess,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to parse the SQL statement.';
+      setApplySqlFeedback({ type: 'danger', message: `Unable to apply SQL to the canvas: ${message}` });
+    }
   };
 
   // Function to save flow state (nodes and viewport)
@@ -703,14 +764,49 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
       </ReactFlowProvider>
       <QueryTabs />
       <div className="my-2">
-        <QueryButton />
+        <div className="d-flex align-items-center flex-wrap">
+          <QueryButton />
+          <span
+            id="apply-to-canvas-button-wrapper"
+            title={
+              queryType === 'SELECT'
+                ? undefined
+                : translations[language.code].queryBuilder.applyToCanvasDisabled
+            }
+            className="d-inline-block"
+          >
+            <Button
+              type="button"
+              size="lg"
+              color="primary"
+              outline
+              className="mr-2"
+              disabled={queryType !== 'SELECT'}
+              style={queryType !== 'SELECT' ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              onClick={handleApplySqlToCanvas}
+            >
+              <FontAwesomeIcon icon={faSyncAlt} className="mr-2" />
+              Apply to Canvas
+            </Button>
+            {queryType !== 'SELECT' && (
+              <UncontrolledTooltip placement="top" target="apply-to-canvas-button-wrapper">
+                {translations[language.code].queryBuilder.applyToCanvasDisabled}
+              </UncontrolledTooltip>
+            )}
+          </span>
 
-        {tables.length ? (
-          <>
-            <DownloadSQLButton />
-            <DownloadCSVButton />
-          </>
-        ) : null}
+          {tables.length ? (
+            <>
+              <DownloadSQLButton />
+              <DownloadCSVButton />
+            </>
+          ) : null}
+        </div>
+        {applySqlFeedback && (
+          <Alert color={applySqlFeedback.type} className="mt-2 mb-0 py-2">
+            {applySqlFeedback.message}
+          </Alert>
+        )}
       </div>
       {!queryValid && (
         <Alert color="danger" className="w-25">

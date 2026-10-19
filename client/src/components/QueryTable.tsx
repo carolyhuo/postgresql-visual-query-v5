@@ -87,10 +87,14 @@ const QueryTableHeader: React.FC<QueryTableHeaderProps> = ({
         </UncontrolledTooltip>
         <Button
           size="sm"
-          className="align-self-start close-button"
+          className="align-self-start close-button nodrag"
           // color="danger"
           style={{ borderBottomRightRadius: '0px' }}
-          onClick={handleRemoveTable}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleRemoveTable();
+          }}
           id={`${target}_remove`}
         >
           <FontAwesomeIcon icon="times" color={'#4c4c4c'} />

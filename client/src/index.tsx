@@ -40,6 +40,12 @@ import {
 import * as serviceWorker from './serviceWorker';
 import App from './App';
 
+window.addEventListener('error', (event) => {
+  if (event.message && event.message.includes('ResizeObserver')) {
+    event.stopImmediatePropagation();
+  }
+});
+
 library.add(
   faTimes,
   faExternalLinkSquareAlt,
