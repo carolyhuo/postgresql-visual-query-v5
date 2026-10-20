@@ -9,6 +9,8 @@ global.TransformStream = TransformStream;
 global.WritableStream = WritableStream;
 
 const { configure } = require('enzyme');
-const Adapter = require('@wojtekmaj/enzyme-adapter-react-17').default;
+const AdapterModule = require('@wojtekmaj/enzyme-adapter-react-17');
+
+const Adapter = AdapterModule.default || AdapterModule;
 
 configure({ adapter: new Adapter() });

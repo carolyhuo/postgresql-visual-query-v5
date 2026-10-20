@@ -20,6 +20,7 @@
     "history": "^4.7.2",
     "lodash": "^4.17.11",
     "node-sql-parser": "^5.4.0",
+    "pg": "^8.23.1",
     "pg-format": "^1.0.4",
     "prettier": "^3.3.3",
     "randomcolor": "^0.5.4",
@@ -55,6 +56,7 @@
     "serve": "serve -s build",
     "build": "react-app-rewired build",
     "test": "react-app-rewired test",
+    "validate:semantic": "tsx src/validation/runSemanticTests.ts",
     "eject": "react-app-rewired eject",
     "pm2-start": "pm2 start npm --name 'query-client' -- run serve",
     "pm2-restart": "pm2 restart query-client"
@@ -70,6 +72,7 @@
   ],
   "devDependencies": {
     "@types/lodash": "^4.17.16",
+    "@types/pg": "^8.23.1",
     "@types/pg-format": "^1.0.5",
     "@types/prop-types": "^15.7.14",
     "@types/randomcolor": "^0.5.9",
@@ -96,6 +99,7 @@
     "moxios": "^0.4.0",
     "react-test-renderer": "^17.0.2",
     "redux-mock-store": "^1.5.3",
+    "tsx": "^4.23.15",
     "typescript": "^4"
   },
   "license": "MIT"

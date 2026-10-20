@@ -175,7 +175,9 @@ const mapSelectExpression = (
   const aggregateFunction = expression?.type === 'aggr_func' && !windowFunction;
   const functionName = readString(expression?.name).toUpperCase();
   const args = readRecord(expression?.args);
-  const argumentReference = readColumnReference(args?.expr);
+  const argumentExpressions =
+    args?.type === 'expr_list' && Array.isArray(args.value) ? args.value : args?.expr ? [args.expr] : [];
+  const argumentReference = readColumnReference(argumentExpressions[0]);
   const directReference = readColumnReference(expression);
   const reference = directReference || argumentReference;
   const columnName = reference?.column || '*';
@@ -234,6 +236,9 @@ const mapSelectExpression = (
   });
 
   if (windowFunction) {
+    mapped.window_function_arguments = argumentExpressions
+      .map((argument) => formatSqlOperand(argument, tables))
+      .join(', ');
     const over = readRecord(expression?.over);
     const specification = readRecord(readRecord(over?.as_window_specification)?.window_specification);
     const partitionByValue = specification?.partitionby;
@@ -384,6 +389,17 @@ const isSelect = (ast: AST): ast is Select => ast.type === 'select';
 const isSelectAst = (ast: unknown): ast is Select =>
   isRecord(ast) && ast.type === 'select' && Array.isArray(ast.columns);
 
+export const normalizeSqlForCanvas = (sql: string): string => {
+  const normalized = sql.replace(
+    /\bFETCH\s+(?:FIRST|NEXT)\s+(\d+)\s+ROWS?\s+ONLY\b/gi,
+    'LIMIT $1',
+  );
+  if (/\bFETCH\b/i.test(normalized)) {
+    throw new Error('FETCH clauses other than FETCH FIRST/NEXT ... ROWS ONLY are not supported for canvas import.');
+  }
+  return normalized;
+};
+
 const mapSelect = (
   select: Select,
   template: QueryType,
@@ -427,11 +443,24 @@ const mapSelect = (
     metadata,
     true,
   );
+  const limit = readRecord(select.limit);
+  const limitValues = limit && Array.isArray(limit.value) ? limit.value : [];
+  const offset = readString(limit?.seperator).toLowerCase() === 'offset';
+  if (offset) {
+    throw new Error('OFFSET clauses are not supported for canvas import.');
+  }
+  const limitExpression = readRecord(limitValues[0]);
+  const parsedLimit = limitExpression?.type === 'number' ? Number(limitExpression.value) : null;
+  if (limitValues.length > 0 && (parsedLimit === null || !Number.isSafeInteger(parsedLimit) || parsedLimit < 0)) {
+    throw new Error('Only numeric LIMIT values are supported for canvas import.');
+  }
   const query: QueryType = {
     ...template,
     id,
     queryName,
     queryType: 'SELECT',
+    limit: parsedLimit !== null,
+    limitValue: parsedLimit ?? template.limitValue,
     activeTab: 'main',
     tables,
     columns,

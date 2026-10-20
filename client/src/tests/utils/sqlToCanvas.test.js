@@ -1,6 +1,7 @@
 import { Parser } from 'node-sql-parser';
 import { INITIAL_STATE } from '../../reducers/queryReducer';
-import { mapSqlAstToQueryState } from '../../utils/sqlToCanvas';
+import { mapSqlAstToQueryState, normalizeSqlForCanvas } from '../../utils/sqlToCanvas';
+import { buildQuery } from '../../utils/queryBuilder';
 
 describe('mapSqlAstToQueryState', () => {
   test('maps SELECT tables, joins, CTE subqueries, and window function settings', () => {
@@ -73,6 +74,70 @@ describe('mapSqlAstToQueryState', () => {
       window_partition_by: '"country"."continent"',
       window_order_by: '"city_summary"."large_cities_population" DESC',
     });
+  });
+
+  test('preserves arguments for LAG and LEAD window functions in main queries and CTEs', () => {
+    const metadata = {
+      tables: [{ table_name: 'city', table_schema: 'public', table_type: 'BASE TABLE' }],
+      columns: [
+        {
+          table_name: 'city',
+          table_schema: 'public',
+          column_name: 'population',
+          data_type: 'integer',
+          ordinal_position: 1,
+        },
+      ],
+      constraints: [],
+    };
+    const sql = `
+      WITH city_lags AS (
+        SELECT LAG(population) OVER (ORDER BY population) AS previous_population
+        FROM public.city
+      )
+      SELECT LEAD(population) OVER (ORDER BY population) AS next_population
+      FROM public.city
+    `;
+    const query = mapSqlAstToQueryState(
+      new Parser().astify(sql, { database: 'Postgresql' }),
+      INITIAL_STATE,
+      metadata,
+    );
+    const generatedSql = buildQuery({ data: query, queries: [] });
+
+    expect(query.columns[0]).toMatchObject({
+      window_function_name: 'LEAD',
+      window_function_arguments: '"city"."population"',
+    });
+    expect(query.ctes[0].query.columns[0]).toMatchObject({
+      window_function_name: 'LAG',
+      window_function_arguments: '"city"."population"',
+    });
+    expect(generatedSql).toContain('LEAD("city"."population") OVER');
+    expect(generatedSql).toContain('LAG("city"."population") OVER');
+    expect(generatedSql).not.toContain('LAG()');
+    expect(generatedSql).not.toContain('LEAD()');
+  });
+
+  test('imports FETCH FIRST queries and preserves the row limit', () => {
+    const sql = `SELECT
+DISTINCT
+RANK() OVER (PARTITION BY "city"."countrycode" ORDER BY "city"."population" DESC) AS rank_result,
+ROW_NUMBER() OVER (PARTITION BY "city"."population") AS row_number_result
+FROM public.city
+FETCH FIRST 50 ROWS ONLY;`;
+    const ast = new Parser().astify(normalizeSqlForCanvas(sql), { database: 'Postgresql' });
+    const query = mapSqlAstToQueryState(ast, INITIAL_STATE, { tables: [], columns: [], constraints: [] });
+
+    expect(query.limit).toBe(true);
+    expect(query.limitValue).toBe(50);
+    expect(buildQuery({ data: query, queries: [] })).toContain('FETCH FIRST 50 ROWS ONLY;');
+  });
+
+  test('rejects unsupported FETCH WITH TIES rather than dropping its semantics', () => {
+    expect(() => normalizeSqlForCanvas('SELECT name FROM city FETCH FIRST 5 ROWS WITH TIES')).toThrow(
+      'FETCH clauses other than FETCH FIRST/NEXT ... ROWS ONLY are not supported for canvas import.',
+    );
   });
 
   test('rejects unsupported statements instead of replacing the canvas', () => {

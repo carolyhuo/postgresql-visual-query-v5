@@ -6,6 +6,7 @@ import { UnControlled as CodeMirror } from 'react-codemirror2';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { generateSql, updateSql } from '../actions/queryActions';
 import { translations } from '../utils/translations';
+import { buildActiveQuerySql } from '../utils/queryBuilder';
 
 interface ResultSQLProps {
   isFloating: boolean;
@@ -14,7 +15,12 @@ interface ResultSQLProps {
 }
 
 export const ResultSQL: React.FC<ResultSQLProps> = ({ isFloating, onFloatToggle, isActive }) => {
-  const { sql } = useAppSelector((state) => state.query);
+  const queryState = useAppSelector((state) => state.query);
+  const queries = useAppSelector((state) => state.queries);
+  const sql =
+    queryState.activeTab && queryState.activeTab !== 'main'
+      ? buildActiveQuerySql(queryState, [...(queries || []), queryState])
+      : queryState.sql;
   const language = useAppSelector((state) => state.settings.language);
   const dispatch = useAppDispatch();
 
@@ -82,6 +88,7 @@ export const ResultSQL: React.FC<ResultSQLProps> = ({ isFloating, onFloatToggle,
       )}
       <div className={`${isFloating ? 'flex-grow-1' : ''} ml-n1 border`} style={{ overflow: 'auto' }}>
         <CodeMirror
+          key={queryState.activeTab || 'main'}
           className="CodeMirror"
           value={sql}
           onChange={(editor, data, value) => {

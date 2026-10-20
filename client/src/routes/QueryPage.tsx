@@ -62,7 +62,7 @@ import TableNode from '../components/TableNode';
 import JoinEdge from '../components/JoinEdge';
 import { logout } from '../actions/hostActions';
 import { createCteTable, CTE_DRAG_DATA_TYPE } from '../utils/cteTableUtils';
-import { mapSqlAstToQueryState } from '../utils/sqlToCanvas';
+import { mapSqlAstToQueryState, normalizeSqlForCanvas } from '../utils/sqlToCanvas';
 
 export const SideBar: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -152,16 +152,6 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   // Default viewport
   const defaultViewport = { x: 0, y: 0, zoom: 0.6 };
 
-  // Add debounced viewport update to fix ResizeObserver issues
-  const debouncedViewportUpdate = useCallback(
-    _.debounce((viewport: Viewport) => {
-      if (reactFlowInstance.current) {
-        reactFlowInstance.current.setViewport(viewport);
-      }
-    }, 200),
-    [],
-  );
-
   const [nodes, setNodes] = useNodesState<QueryFlowNode>([]);
   // @ts-ignore - bypass TypeScript errors for edge state
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -180,7 +170,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
 
   const handleApplySqlToCanvas = () => {
     try {
-      const ast = new Parser().astify(sql, { database: 'Postgresql' });
+      const ast = new Parser().astify(normalizeSqlForCanvas(sql), { database: 'Postgresql' });
       console.log('Parsed AST:', ast);
       const sourceQuery =
         query.activeTab && query.activeTab !== 'main' && query.mainQueryBackup
@@ -232,7 +222,9 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const handleNodesChange = useCallback(
     (changes: NodeChange<QueryFlowNode>[]) => {
       const updated = applyNodeChanges(changes, nodes);
-      setNodes(updated);
+      window.requestAnimationFrame(() => {
+        setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+      });
 
       if (reactFlowInstance.current) {
         saveFlowState(updated, reactFlowInstance.current.getViewport());
@@ -275,14 +267,12 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
         sessionStorage.getItem(flowStateKey) ||
         ((query.activeTab || 'main') === 'main' ? sessionStorage.getItem(legacyFlowStateKey) : null);
 
-      // Special handling for Main query (id = 0) to avoid ResizeObserver issues
       if (query.id === 0 && tables.length > 0 && !savedFlowState) {
-        // Use a short delay to ensure stable initialization
-        setTimeout(() => {
+        window.requestAnimationFrame(() => {
           if (instance) {
             instance.fitView({ padding: 0.2 });
           }
-        }, 50);
+        });
       }
     },
     [flowStateKey, legacyFlowStateKey, query.activeTab, query.id, tables.length],
@@ -329,11 +319,13 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     }
 
     if (tables.length === 0) {
-      setNodes([]);
-      if (savedState?.viewport && reactFlowInstance.current) {
-        debouncedViewportUpdate(savedState.viewport as Viewport);
-      }
-      return;
+      const frameId = window.requestAnimationFrame(() => {
+        setNodes([]);
+        if (savedState?.viewport) {
+          window.requestAnimationFrame(() => reactFlowInstance.current?.setViewport(savedState?.viewport as Viewport));
+        }
+      });
+      return () => window.cancelAnimationFrame(frameId);
     }
 
     // Calculate how many tables per row
@@ -388,20 +380,21 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
       });
     });
 
-    setNodes(newNodes);
-
-    // If we have a saved viewport and instance is available, set it after a small delay
-    if (savedState?.viewport && reactFlowInstance.current) {
-      if (query.id === 0) {
-        // For Main query (id=0), use debounced update to avoid ResizeObserver issues
-        debouncedViewportUpdate(savedState.viewport as Viewport);
-      } else {
-        // For other queries, normal behavior
-        setTimeout(() => {
-          reactFlowInstance.current.setViewport(savedState?.viewport as Viewport);
-        }, 100);
+    let viewportFrameId: number | null = null;
+    const frameId = window.requestAnimationFrame(() => {
+      setNodes(newNodes);
+      if (savedState?.viewport) {
+        viewportFrameId = window.requestAnimationFrame(() =>
+          reactFlowInstance.current?.setViewport(savedState?.viewport as Viewport),
+        );
       }
-    }
+    });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (viewportFrameId !== null) {
+        window.cancelAnimationFrame(viewportFrameId);
+      }
+    };
   }, [tables, containerWidth, queryType, setNodes, query.id, query.activeTab, flowStateKey, legacyFlowStateKey]);
 
   const getMarker = (joinType: string) => {
@@ -429,8 +422,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
 
   useEffect(() => {
     if (!joins || joins.length === 0 || !tables || tables.length === 0) {
-      setEdges([]);
-      return;
+      const frameId = window.requestAnimationFrame(() => setEdges([]));
+      return () => window.cancelAnimationFrame(frameId);
     }
 
     // For Main query, add a small delay to ensure nodes are properly positioned
@@ -490,12 +483,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
       setEdges(newEdges);
     };
 
-    if (query.id === 0) {
-      // For Main query, add a small delay to reduce ResizeObserver issues
-      setTimeout(createEdges, 50);
-    } else {
-      createEdges();
-    }
+    const frameId = window.requestAnimationFrame(createEdges);
+    return () => window.cancelAnimationFrame(frameId);
   }, [joins, setEdges, tables, activeEdgeId, query.id]);
 
   // Handle new connections

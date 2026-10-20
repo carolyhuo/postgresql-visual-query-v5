@@ -361,7 +361,7 @@ const addColumnsToQuery = (
               : `${operator} ${subquery}`;
           } else {
             // Check for other operators at the start
-            const operatorMatch = textVal.match(/^(=|LIKE|>|<|>=|<=|<>|!=)\s*(.*)/i);
+            const operatorMatch = textVal.match(/^(>=|<=|<>|!=|=|LIKE|>|<)\s*(.*)/i);
             if (operatorMatch) {
               const [, operator, rightSide] = operatorMatch;
               result += effectiveColumnName
@@ -517,13 +517,16 @@ const addColumnsToQuery = (
           throw new Error(`Invalid window function name: ${functionName}`);
         }
 
-        const argument = ['ROW_NUMBER', 'RANK', 'DENSE_RANK'].includes(functionName)
-          ? ''
-          : column.column_name === '*'
-            ? '*'
-            : column.column_name !== column.column_name_original
-              ? replaceColumnNamesWithQualified(column.column_name, data.tables)
-              : `${quoteIdentifier(column.table_alias || column.table_name)}.${quoteIdentifier(column.column_name)}`;
+        const argument =
+          column.window_function_arguments !== undefined
+            ? column.window_function_arguments
+            : ['ROW_NUMBER', 'RANK', 'DENSE_RANK'].includes(functionName)
+              ? ''
+              : column.column_name === '*'
+                ? '*'
+                : column.column_name !== column.column_name_original
+                  ? replaceColumnNamesWithQualified(column.column_name, data.tables)
+                  : `${quoteIdentifier(column.table_alias || column.table_name)}.${quoteIdentifier(column.column_name)}`;
         const partitionClause = column.window_partition_by ? `PARTITION BY ${column.window_partition_by}` : '';
         const orderClause = column.window_order_by ? `ORDER BY ${column.window_order_by}` : '';
         const overContent = [partitionClause, orderClause].filter(Boolean).join(' ');
@@ -1155,6 +1158,19 @@ export const buildQuery = ({
 
   const withClause = cteStrings.length > 0 ? `WITH ${cteStrings.join(',\n')}\n` : '';
   return `${withClause}${mainSelectSql}`;
+};
+
+export const buildActiveQuerySql = (data: QueryType, queries: QueryType[]): string => {
+  const activeQuery =
+    data.activeTab && data.activeTab !== 'main'
+      ? {
+          ...data,
+          activeTab: 'main',
+          ctes: [],
+          mainQueryBackup: null,
+        }
+      : data;
+  return buildQuery({ data: activeQuery, queries });
 };
 
 /**

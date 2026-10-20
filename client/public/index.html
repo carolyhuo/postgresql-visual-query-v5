@@ -9,6 +9,14 @@
     />
     <meta name="theme-color" content="#000000" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <script>
+      window.addEventListener('error', (e) => {
+        if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('loop completed'))) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      });
+    </script>
     <title>Postgres Query Builder 5</title>
   </head>
   <body>

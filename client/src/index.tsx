@@ -40,9 +40,10 @@ import {
 import * as serviceWorker from './serviceWorker';
 import App from './App';
 
-window.addEventListener('error', (event) => {
-  if (event.message && event.message.includes('ResizeObserver')) {
-    event.stopImmediatePropagation();
+window.addEventListener('error', (e) => {
+  if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('loop completed'))) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
   }
 });
 

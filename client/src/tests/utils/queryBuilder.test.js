@@ -287,6 +287,15 @@ describe('query builder', () => {
     expect(query).toEqual(expected);
   });
 
+  test('preserves multi-character comparison operators in imported criteria', () => {
+    const data = createValidQueryData();
+    data.columns[0].column_conditions = ['>= 5'];
+
+    const query = queryBuilder.buildQuery({ data, queries: [] });
+
+    expect(query).toContain('WHERE (amet.amet_kood >= 5);');
+  });
+
   test('add join', () => {
     const data = _.cloneDeep(testData2);
 
@@ -789,6 +798,26 @@ describe('query builder', () => {
         + 'FROM public.amet;',
     );
     expect(query).not.toContain('suured_linnad AS (\n  SELECT\n)');
+  });
+
+  test('builds only the active CTE inner SELECT for its SQL preview', () => {
+    const activeCteWorkspace = createValidQueryData();
+    activeCteWorkspace.tables[0].table_name = 'cities';
+    activeCteWorkspace.columns.forEach((column) => {
+      column.table_name = 'cities';
+    });
+    const data = {
+      ...activeCteWorkspace,
+      activeTab: 'cte_1',
+      mainQueryBackup: createValidQueryData(),
+      ctes: [{ id: 'cte_1', name: 'suured_linnad', query: createValidQueryData() }],
+    };
+
+    const sql = queryBuilder.buildActiveQuerySql(data, []);
+
+    expect(sql).toContain('FROM public.cities;');
+    expect(sql).not.toContain('WITH');
+    expect(sql).not.toContain('suured_linnad AS');
   });
 
   test('uses a CTE table as an unqualified FROM source', () => {
