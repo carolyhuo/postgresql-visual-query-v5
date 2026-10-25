@@ -1,15 +1,13 @@
 import React from 'react';
 import { Button } from 'reactstrap';
-import { query, updateValidity } from '../actions/queryActions';
+import { executeCtePreview, query, updateValidity } from '../actions/queryActions';
 import { translations } from '../utils/translations';
 import { validateSql } from '../utils/validateQuery';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { buildActiveQuerySql } from '../utils/queryBuilder';
 
 export const QueryButton: React.FC = () => {
   const dispatch = useAppDispatch();
   const queryState = useAppSelector((state) => state.query);
-  const queries = useAppSelector((state) => state.queries);
   const sql = queryState.sql;
   const language = useAppSelector((state) => state.settings.language);
   const querying = queryState.querying;
@@ -24,32 +22,20 @@ export const QueryButton: React.FC = () => {
   }));
 
   const handleOnClick = () => {
-    let executionSql = sql;
     if (isCtePreview) {
-      const previewLimit = queryState.limit && queryState.limitValue
-        ? Math.min(queryState.limitValue, 50)
-        : 50;
-      executionSql = buildActiveQuerySql(
-        {
-          ...queryState,
-          limit: true,
-          limitValue: previewLimit,
-          withTies: false,
-        },
-        [...(queries || []), queryState],
-      );
+      dispatch(executeCtePreview());
+      return;
     }
 
-    const isValid = validateSql(executionSql);
+    const isValid = validateSql(sql);
 
-    dispatch(updateValidity({ isValid }));
+    dispatch(updateValidity(isValid));
 
     if (isValid) {
       dispatch(
         query({
           ...hostDetails,
-          sql: executionSql,
-          ...(isCtePreview ? { maxRows: 50 } : {}),
+          sql,
         }),
       );
     }

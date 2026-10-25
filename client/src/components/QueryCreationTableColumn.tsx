@@ -657,7 +657,12 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
 
           {/* Criteria */}
           {Array.from({ length: maxConditions }).map((_, i) => (
-            <div key={i} style={{ minHeight: '56px', padding: '0.5rem', borderBottom: '1px solid #ddd' }}>
+            <div key={i} style={{ height: '82px', padding: '0.35rem 0.5rem', borderBottom: '1px solid #ddd' }}>
+              {data.column_aggregate && (
+                <small className="d-block text-muted text-truncate mb-1">
+                  {translations[language.code].queryBuilder.havingFilterLabel}
+                </small>
+              )}
               <textarea
                 rows={1}
                 ref={(el) => {

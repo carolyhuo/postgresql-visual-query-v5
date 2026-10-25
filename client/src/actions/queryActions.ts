@@ -3,6 +3,8 @@ import { JoinType } from '../types/queryTypes';
 import { Dispatch } from 'redux';
 import { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import { createCteTable } from '../utils/cteTableUtils';
+import { buildActiveQuerySql } from '../utils/queryBuilder';
+import { validateSql } from '../utils/validateQuery';
 import {
   AddColumnAction,
   AddTableAction,
@@ -227,11 +229,58 @@ export const query = (state: any) => async (dispatch: Dispatch<QueryActions>) =>
       maxRows: state.maxRows ?? 10000, // Server should respect this parameter to limit large result sets
     });
 
-    dispatch({ type: ADD_RESULT_FULFILLED, payload: response.data });
+    dispatch({
+      type: ADD_RESULT_FULFILLED,
+      payload: {
+        ...response.data,
+        isCtePreview: Boolean(state.isCtePreview),
+      },
+    });
   } catch (error) {
     dispatch({ type: ADD_RESULT_REJECTED, payload: error as string });
   }
 };
+
+export const executeCtePreview =
+  () =>
+  async (dispatch: ThunkDispatch<RootState, unknown, QueryActions>, getState: () => RootState): Promise<void> => {
+    const state = getState();
+    const queryState = state.query;
+    const activeCte = queryState.ctes?.find(
+      (cte: { id: string; name: string }) => cte.id === queryState.activeTab || cte.name === queryState.activeTab,
+    );
+    if (!activeCte) {
+      throw new Error('Cannot preview a CTE when no CTE workspace is active.');
+    }
+
+    const previewLimit =
+      queryState.limit && queryState.limitValue ? Math.min(queryState.limitValue, 50) : 50;
+    const sql = buildActiveQuerySql(
+      {
+        ...queryState,
+        limit: true,
+        limitValue: previewLimit,
+        withTies: false,
+      },
+      [...(state.queries || []), queryState],
+    );
+    const isValid = validateSql(sql);
+    dispatch(updateValidity(isValid));
+    if (!isValid) {
+      return;
+    }
+
+    await dispatch(
+      query({
+        database: state.host.database,
+        user: state.host.user,
+        password: state.host.password,
+        sql,
+        maxRows: 50,
+        isCtePreview: true,
+      }),
+    );
+  };
 
 export const addJoin =
   (join?: JoinType, isDragAndDrop = false) =>
@@ -342,7 +391,7 @@ export const setLimitValue =
     dispatch(generateSql());
   };
 
-export const updateValidity = (isValid: UpdateValidityAction['payload']) => ({
+export const updateValidity = (isValid: boolean): UpdateValidityAction => ({
   type: UPDATE_VALIDITY,
   payload: { isValid },
 });

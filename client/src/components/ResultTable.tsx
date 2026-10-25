@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { useTable, usePagination } from 'react-table';
+import { Button } from 'reactstrap';
 import { useAppSelector } from '../hooks';
+import { translations } from '../utils/translations';
 
 // Define error type
 interface ErrorResponse {
@@ -33,6 +35,7 @@ interface ResultType {
   rows: Record<string, any>[];
   fullRowCount?: number;
   hasMoreRows?: boolean;
+  isCtePreview?: boolean;
 }
 
 // Define the row number cell component outside the main component
@@ -51,10 +54,19 @@ interface CellRendererProps {
 
 const CellRenderer: React.FC<CellRendererProps> = ({ row }) => <RowNumberCell index={row.index} />;
 
-const ResultTable: React.FC = () => {
+interface ResultTableProps {
+  showReturnToEditor: boolean;
+  onReturnToEditor: () => void;
+}
+
+const ResultTable: React.FC<ResultTableProps> = ({ showReturnToEditor, onReturnToEditor }) => {
   // Use Redux hooks instead of connect HOC
   const result = useAppSelector((state) => state.query.result) as ResultType | null;
   const error = useAppSelector((state) => state.query.error) as ErrorResponse | null;
+  const { language, isPreviewLoading } = useAppSelector((state) => ({
+    language: state.settings.language,
+    isPreviewLoading: state.query.querying && Boolean(state.query.activeTab && state.query.activeTab !== 'main'),
+  }));
 
   // Use useMemo to cache the parsed rows and columns to avoid recalculation on every render
   const parsedRows = useMemo(() => {
@@ -152,9 +164,27 @@ const ResultTable: React.FC = () => {
 
   return (
     <div className="result">
-      {result && (
+      {showReturnToEditor && (
+        <div className="d-flex justify-content-end align-items-center mb-2">
+          <Button color="secondary" size="sm" onClick={onReturnToEditor}>
+            {translations[language.code].queryBuilder.returnToEditor}
+          </Button>
+        </div>
+      )}
+      {isPreviewLoading && (
+        <div className="alert alert-info d-flex align-items-center" role="status">
+          <span className="spinner-border spinner-border-sm mr-2" aria-hidden="true" />
+          {translations[language.code].queryBuilder.loadingCtePreview}
+        </div>
+      )}
+      {!isPreviewLoading && result && (
         <>
-          {hasLimitedResults && (
+          {result.isCtePreview && (
+            <div className="alert alert-info mb-3" role="alert">
+              {translations[language.code].queryBuilder.ctePreviewNotice}
+            </div>
+          )}
+          {!result.isCtePreview && hasLimitedResults && (
             <div className="alert alert-info mb-3" role="alert">
               <strong>Note:</strong> Showing {result.rows.length} of {fullRowCount || 'many'} rows for better
               performance. You can modify your query to include a LIMIT clause for more specific results.
@@ -222,8 +252,8 @@ const ResultTable: React.FC = () => {
           )}
         </>
       )}
-      {error && errorData && (
-        <div>
+      {!isPreviewLoading && error && errorData && (
+        <div className="alert alert-danger" role="alert">
           {`ERROR: ${errorData.message}`}
           <div className="w-100" />
           {`CODE: ${errorData.code}`}

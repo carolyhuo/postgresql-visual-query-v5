@@ -224,7 +224,7 @@ export const QueryCreationTable: React.FC<Record<string, never>> = () => {
               <div
                 key={index}
                 style={{
-                  height: '56px',
+                  height: label.id === 'criteria' || label.id.startsWith('or-') ? '82px' : '56px',
                   padding: '0.75rem',
                   borderBottom: '1px solid #ddd',
                   display: 'flex',

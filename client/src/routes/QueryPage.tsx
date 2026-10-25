@@ -25,6 +25,7 @@ import {
   addJoin,
   addCteToMainQuery,
   addTable,
+  executeCtePreview,
   generateSql,
   setActiveQuery,
   setActiveTab,
@@ -52,8 +53,10 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  useNodes,
   useEdgesState,
   useNodesState,
+  useUpdateNodeInternals,
   Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -112,6 +115,10 @@ interface QueryBuilderProps {
   tables: QueryTableType[];
   queryValid: boolean;
   queryType: string;
+  codeVisible: boolean;
+  onCodeShortcut: () => void;
+  onCtePreviewStart: () => void;
+  onReturnToEditor: () => void;
 }
 
 // Define viewport interface
@@ -121,16 +128,52 @@ interface SavedFlowState {
 }
 
 type QueryFlowNode = Node<{ table: QueryTableType; index: number; isDraggable: boolean }>;
+type CanvasLayout = 'compact' | 'expanded' | 'hidden';
+
+const CanvasNodeLayoutSync: React.FC<{ layout: CanvasLayout }> = ({ layout }) => {
+  const nodes = useNodes();
+  const updateNodeInternals = useUpdateNodeInternals();
+  const nodeIds = nodes.map((node) => node.id).join(',');
+
+  useEffect(() => {
+    let frameId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      frameId = window.requestAnimationFrame(() => {
+        nodeIds.split(',').filter(Boolean).forEach(updateNodeInternals);
+      });
+    }, 260);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [layout, nodeIds, updateNodeInternals]);
+
+  return null;
+};
 
 const getFlowNodeId = (queryId: number, activeTab: string, tableId: number): string =>
   `query-${queryId}-${encodeURIComponent(activeTab)}-table-${tableId}`;
 
 const isFlowDiagnosticsEnabled = () => window.sessionStorage.getItem('debugFlowPositions') === '1';
 
-export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, queryType }) => {
+export const QueryBuilder: React.FC<QueryBuilderProps> = ({
+  tables,
+  queryValid,
+  queryType,
+  codeVisible,
+  onCodeShortcut,
+  onCtePreviewStart,
+  onReturnToEditor,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
+  const [canvasLayout, setCanvasLayout] = useState<CanvasLayout>('expanded');
+  const previousVisibleCanvasLayout = useRef<'compact' | 'expanded'>('expanded');
   const reactFlowInstance = useRef<any>(null);
+  const pendingMainCteFocus = useRef<number | null>(null);
   const hasInitialMainFit = useRef(false);
   const pendingDimensionChanges = useRef<NodeChange<QueryFlowNode>[]>([]);
   const dimensionUpdateFrame = useRef<number | null>(null);
@@ -141,6 +184,11 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const query = useAppSelector((state) => state.query);
   const activeWorkspaceId = query.activeTab || 'main';
   const activeCte = query.ctes?.find((cte) => cte.id === activeWorkspaceId);
+  const mainTables =
+    activeWorkspaceId === 'main' ? query.tables : query.mainQueryBackup?.tables || [];
+  const activeCteTable = activeCte
+    ? mainTables.find((table) => table.table_type === 'CTE' && table.table_name === activeCte.name)
+    : undefined;
   const sql = query.sql;
   const databaseMetadata = useAppSelector((state) => state.database);
   const [applySqlFeedback, setApplySqlFeedback] = useState<{ type: 'success' | 'danger'; message: string } | null>(
@@ -158,6 +206,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
 
   // Track active edge ID
   const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null);
+  const [previewRequestId, setPreviewRequestId] = useState(0);
   // Container dimensions
   const [containerWidth] = useState(1200);
 
@@ -172,12 +221,47 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const nodeTypes = { tableNode: TableNode } as ReactFlowNodeTypes;
   const edgeTypes = { joinEdge: JoinEdge } as ReactFlowEdgeTypes;
 
+  useEffect(() => {
+    if (activeWorkspaceId !== 'main' || pendingMainCteFocus.current === null) {
+      return undefined;
+    }
+    const tableId = pendingMainCteFocus.current;
+    pendingMainCteFocus.current = null;
+    const frameId = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const nodeId = getFlowNodeId(query.id, 'main', tableId);
+        const node = reactFlowInstance.current?.getNode(nodeId);
+        if (node) {
+          reactFlowInstance.current?.fitView({
+            nodes: [node],
+            padding: 0.4,
+            duration: 300,
+          });
+        }
+      });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeWorkspaceId, query.id, tables]);
+
   // Grid configuration for positioning nodes
   const gridConfig = {
     defaultHeight: 300,
     defaultWidth: 250,
     verticalSpacing: 200,
     horizontalSpacing: 300,
+  };
+
+  const setVisibleCanvasLayout = (layout: 'compact' | 'expanded') => {
+    previousVisibleCanvasLayout.current = layout;
+    setCanvasLayout(layout);
+  };
+
+  const fitCanvasToView = () => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        reactFlowInstance.current?.fitView({ padding: 0.2, duration: 300 });
+      });
+    });
   };
 
   const handleApplySqlToCanvas = () => {
@@ -748,9 +832,31 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
               size="sm"
               color="primary"
               className="mr-2"
-              onClick={() => dispatch(addCteToMainQuery(activeCte.id))}
+              disabled={query.querying}
+              onClick={() => {
+                onCtePreviewStart();
+                setPreviewRequestId((requestId) => requestId + 1);
+                dispatch(executeCtePreview());
+              }}
             >
-              {translations[language.code].queryBuilder.addCteToMain}
+              {translations[language.code].queryBuilder.previewCte}
+            </Button>
+            <Button
+              size="sm"
+              color="primary"
+              className="mr-2"
+              onClick={() => {
+                if (activeCteTable) {
+                  pendingMainCteFocus.current = activeCteTable.id;
+                  dispatch(setActiveTab('main'));
+                  return;
+                }
+                dispatch(addCteToMainQuery(activeCte.id));
+              }}
+            >
+              {activeCteTable
+                ? translations[language.code].queryBuilder.showInMain
+                : translations[language.code].queryBuilder.addCteToMain}
             </Button>
             <Button size="sm" color="secondary" onClick={() => dispatch(setActiveTab('main'))}>
               {translations[language.code].queryBuilder.backToMain}
@@ -761,7 +867,68 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
       <ReactFlowProvider>
         <div ref={containerRef} className="grid-container">
           {['SELECT'].includes(queryType) && (
-            <div style={{ width: '100%', height: '50vh', border: '1px solid #ddd', borderRadius: '4px' }}>
+            <>
+              {canvasLayout === 'hidden' ? (
+                <Button
+                  type="button"
+                  color="light"
+                  className="w-100 text-left mb-2 canvas-show-banner"
+                  onClick={() => setCanvasLayout(previousVisibleCanvasLayout.current)}
+                >
+                  ▼ {translations[language.code].queryBuilder.canvasShow}
+                </Button>
+              ) : (
+                <div className="d-flex justify-content-end align-items-center mb-1 canvas-layout-toolbar">
+                  <Button
+                    type="button"
+                    size="sm"
+                    color={canvasLayout === 'compact' ? 'secondary' : 'light'}
+                    aria-pressed={canvasLayout === 'compact'}
+                    onClick={() => setVisibleCanvasLayout('compact')}
+                  >
+                    ⤢ {translations[language.code].queryBuilder.canvasCompact}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    color={canvasLayout === 'expanded' ? 'secondary' : 'light'}
+                    aria-pressed={canvasLayout === 'expanded'}
+                    className="ml-1"
+                    onClick={() => setVisibleCanvasLayout('expanded')}
+                  >
+                    ⤢ {translations[language.code].queryBuilder.canvasExpanded}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    color="light"
+                    className="ml-1"
+                    onClick={fitCanvasToView}
+                  >
+                    ⛶ {translations[language.code].queryBuilder.canvasFit}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    color="light"
+                    className="ml-1"
+                    onClick={() => {
+                      previousVisibleCanvasLayout.current = canvasLayout;
+                      setCanvasLayout('hidden');
+                    }}
+                  >
+                    {translations[language.code].queryBuilder.canvasHide}
+                  </Button>
+                </div>
+              )}
+              <div
+                className="canvas-flow-viewport"
+                style={{
+                  height: canvasLayout === 'hidden' ? '0px' : canvasLayout === 'compact' ? '280px' : '550px',
+                  borderWidth: canvasLayout === 'hidden' ? '0' : '1px',
+                }}
+                aria-hidden={canvasLayout === 'hidden'}
+              >
               {query.tables.length === 0 && (
                 <div className={'flow-cover'}>{translations[language.code].queryBuilder.selectTableToStart}</div>
               )}
@@ -806,6 +973,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
                 <Controls />
                 <Background gap={16} color="#f8f8f8" />
                 <MiniMap zoomable pannable />
+                <CanvasNodeLayoutSync layout={canvasLayout} />
 
                 <Panel position="top-left" style={{ margin: '4px', boxShadow: 'none', border: 'none' }}>
                   <div className="p-1 bg-light" style={{ fontSize: '14px', lineHeight: '100%' }}>
@@ -820,7 +988,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
                   </div>
                 </Panel>
               </ReactFlow>
-            </div>
+              </div>
+            </>
           )}
 
           {/* Display fixed tables for DELETE/UPDATE queries */}
@@ -872,6 +1041,11 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
               <DownloadCSVButton />
             </>
           ) : null}
+          <Button type="button" color="primary" className="mr-2" onClick={onCodeShortcut}>
+            {codeVisible
+              ? translations[language.code].queryBuilder.scrollToTop
+              : translations[language.code].queryBuilder.viewSQLCode}
+          </Button>
         </div>
         {applySqlFeedback && (
           <Alert color={applySqlFeedback.type} className="mt-2 mb-0 py-2">
@@ -884,17 +1058,33 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
           {translations[language.code].queryBuilder.invalidQuery}
         </Alert>
       )}
-      <ResultTabs />
+      <ResultTabs
+        previewRequestId={previewRequestId}
+        onReturnToEditor={onReturnToEditor}
+      />
     </div>
   );
 };
 
 export const QueryPage: React.FC = () => {
   const { tables, queryValid, queryType } = useAppSelector((state) => state.query);
-  const language = useAppSelector((state) => state.settings.language);
   const { activeTableId } = useAppSelector((state) => state.tableView);
   const scrollbarsRef = useRef<Scrollbars>(null);
   const [codeVisible, setCodeVisible] = useState(false);
+  const savedEditorScrollTop = useRef(0);
+
+  const saveEditorScrollPosition = () => {
+    const scrollEl = (scrollbarsRef.current as any)?.view as HTMLElement | undefined;
+    savedEditorScrollTop.current = scrollEl?.scrollTop || 0;
+  };
+
+  const returnToEditor = () => {
+    const scrollEl = (scrollbarsRef.current as any)?.view;
+    scrollEl?.scrollTo({
+      top: savedEditorScrollTop.current,
+      behavior: 'smooth',
+    });
+  };
 
   const scrollToBottom = () => {
     const scrollEl = (scrollbarsRef.current as any)?.view;
@@ -933,15 +1123,6 @@ export const QueryPage: React.FC = () => {
 
   return (
     <Container fluid>
-      {codeVisible ? (
-        <div className={'view-sql-shortcut'} onClick={scrollToTop}>
-          {translations[language.code].queryBuilder.scrollToTop}
-        </div>
-      ) : (
-        <div className={'view-sql-shortcut'} onClick={scrollToBottom}>
-          {translations[language.code].queryBuilder.viewSQLCode}
-        </div>
-      )}
       <Row>
         <Col sm="2" className="py-2 vh-100 d-flex bg-light">
           <SideBar />
@@ -949,7 +1130,15 @@ export const QueryPage: React.FC = () => {
         <Col sm="10" className="pr-0" id={'query-area'}>
           <Scrollbars ref={scrollbarsRef} id={'query-area-scroll'}>
             {activeTableId === null ? (
-              <QueryBuilder queryValid={queryValid} tables={tables} queryType={queryType} />
+              <QueryBuilder
+                queryValid={queryValid}
+                tables={tables}
+                queryType={queryType}
+                codeVisible={codeVisible}
+                onCodeShortcut={codeVisible ? scrollToTop : scrollToBottom}
+                onCtePreviewStart={saveEditorScrollPosition}
+                onReturnToEditor={returnToEditor}
+              />
             ) : (
               <div className="mt-0 pr-2">
                 <NavBar />

@@ -36,7 +36,9 @@ function JoinEdge({
   const { setEdges } = useReactFlow();
   const [currentJoinType, setCurrentJoinType] = useState<string>('inner');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const hoverTimeout = useRef<number | null>(null);
   const language = useAppSelector((state) => state.settings.language);
 
   // Generate path for the edge
@@ -54,6 +56,30 @@ function JoinEdge({
   const join = typedData?.join || { type: 'inner', id: 0, color: '#000000', main_table: {}, conditions: [] };
   const mainTable = typedData?.mainTable || 'Table';
   const secondaryTable = typedData?.secondaryTable || 'Table';
+  const sourceColumn = typedData?.sourceColumn || 'column';
+  const targetColumn = typedData?.targetColumn || 'column';
+  const joinType = join.type || currentJoinType;
+  const joinText = translations[language.code].queryBuilder;
+  const joinTypeLabel =
+    joinType === 'left'
+      ? joinText.leftJoinLabel
+      : joinType === 'right'
+        ? joinText.rightJoinLabel
+        : joinType === 'outer'
+          ? joinText.outerJoinLabel
+          : joinType === 'cross'
+            ? joinText.crossJoinLabel
+            : joinText.innerJoinLabel;
+  const joinExplanation =
+    joinType === 'left'
+      ? joinText.leftJoinExplanation
+      : joinType === 'right'
+        ? joinText.rightJoinExplanation
+        : joinType === 'outer'
+          ? joinText.outerJoinExplanation
+          : joinType === 'cross'
+            ? joinText.crossJoinExplanation
+            : joinText.innerJoinExplanation;
 
   const isActive = typedData?.isActive || false;
   const setIsActiveNull = typedData?.setIsActiveNull;
@@ -73,6 +99,30 @@ function JoinEdge({
       setIsDropdownOpen(false);
     }
   }, [isActive]);
+
+  useEffect(
+    () => () => {
+      if (hoverTimeout.current !== null) {
+        window.clearTimeout(hoverTimeout.current);
+      }
+    },
+    [],
+  );
+
+  const keepExplanationOpen = () => {
+    if (hoverTimeout.current !== null) {
+      window.clearTimeout(hoverTimeout.current);
+      hoverTimeout.current = null;
+    }
+    setIsHovered(true);
+  };
+
+  const closeExplanation = () => {
+    hoverTimeout.current = window.setTimeout(() => {
+      hoverTimeout.current = null;
+      setIsHovered(false);
+    }, 120);
+  };
 
   // Toggle dropdown manually
   const toggleDropdown = () => {
@@ -130,6 +180,8 @@ function JoinEdge({
           strokeWidth: 2,
         }}
         interactionWidth={40}
+        onMouseEnter={keepExplanationOpen}
+        onMouseLeave={closeExplanation}
         onClick={() => {
           toggleDropdown();
         }}
@@ -141,14 +193,32 @@ function JoinEdge({
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             zIndex: 10001,
-            pointerEvents: 'all',
-            background: 'rgba(255, 255, 255, 0.95)',
+            pointerEvents: isDropdownOpen || isHovered ? 'all' : 'none',
           }}
           className="join-controls"
           id={`join-label-${id}`}
+          onMouseEnter={keepExplanationOpen}
+          onMouseLeave={closeExplanation}
         >
+          {isHovered && !isDropdownOpen && (
+            <div className="join-explanation">
+              <strong>{joinTypeLabel}</strong>
+              <div>
+                {mainTable}.{sourceColumn} = {secondaryTable}.{targetColumn}
+              </div>
+              <div>{joinExplanation}</div>
+            </div>
+          )}
           {isDropdownOpen && (
             <div className="dropdown-menu show" style={{ position: 'absolute', zIndex: 10001 }}>
+              <div className="join-explanation dropdown-item-text">
+                <strong>{joinTypeLabel}</strong>
+                <div>
+                  {mainTable}.{sourceColumn} = {secondaryTable}.{targetColumn}
+                </div>
+                <div>{joinExplanation}</div>
+              </div>
+              <div className="dropdown-divider" />
               <button
                 className="dropdown-item"
                 type="button"

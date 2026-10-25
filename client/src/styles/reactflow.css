@@ -5,6 +5,24 @@
   background-color: #f9f9f9;
 }
 
+.canvas-flow-viewport {
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: solid #ddd;
+  border-radius: 4px;
+  transition: height 0.25s ease, border-width 0.25s ease;
+}
+
+.canvas-layout-toolbar .btn {
+  border-color: #dee2e6;
+}
+
+.canvas-show-banner {
+  border: 1px solid #dee2e6;
+  color: #495057;
+}
+
 .flow-cover{
   width: 100%;
   height: 100%;
@@ -117,6 +135,27 @@
 /* Join controls styling */
 .join-controls {
   font-size: 0.85rem;
+}
+
+.join-explanation {
+  min-width: 260px;
+  max-width: 360px;
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: #fff;
+  color: #212529;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.join-explanation > div {
+  margin-top: 2px;
+}
+
+.join-controls .join-explanation.dropdown-item-text {
+  white-space: normal;
 }
 
 .join-type-button {

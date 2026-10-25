@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Col, Container, Nav, NavItem, NavLink, Row, TabContent, TabPane } from 'reactstrap';
 import ResultTable from './ResultTable';
 import { useAppSelector } from '../hooks';
@@ -6,8 +6,10 @@ import { translations } from '../utils/translations';
 import ResultSQL from './ResultSQL';
 import { withTabSwitcher } from '../hocs/withTabSwitcher';
 
-// Component props without the HOC added props
-type OwnProps = Record<string, never>;
+type PreviewWorkflowProps = {
+  previewRequestId: number;
+  onReturnToEditor: () => void;
+};
 
 // Props that come from the HOC
 type TabSwitcherProps = {
@@ -16,9 +18,14 @@ type TabSwitcherProps = {
 };
 
 // Combined props type
-type ResultTabsProps = OwnProps & TabSwitcherProps;
+type ResultTabsProps = PreviewWorkflowProps & TabSwitcherProps;
 
-export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => {
+export const ResultTabs: React.FC<ResultTabsProps> = ({
+  activeTab,
+  toggle,
+  previewRequestId,
+  onReturnToEditor,
+}) => {
   const { language, result, query } = useAppSelector((state) => ({
     language: state.settings.language,
     result: state.query.result,
@@ -26,10 +33,31 @@ export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => 
   }));
 
   const [isFloating, setIsFloating] = useState(false);
-  const isCtePreview = !!query.activeTab && query.activeTab !== 'main';
+  const [hasPreviewRequest, setHasPreviewRequest] = useState(false);
+  const resultsPanelRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
+  const isCtePreview = Boolean(result?.isCtePreview);
   const resultTitle = isCtePreview
-    ? translations[language.code].queryBuilder.ctePreviewResult
-    : translations[language.code].queryBuilder.resultH;
+    ? `${translations[language.code].queryBuilder.ctePreviewResult} · ${result?.rowCount || 0} ${
+        result?.rowCount === 1
+          ? translations[language.code].queryBuilder.rowSingular
+          : translations[language.code].queryBuilder.rowPlural
+      }`
+    : `${translations[language.code].queryBuilder.resultH}${result ? ` (${result.rowCount || 0})` : ''}`;
+
+  useEffect(() => {
+    if (previewRequestId === 0) {
+      return;
+    }
+    setHasPreviewRequest(true);
+    setIsFloating(false);
+    toggleRef.current('2');
+    const frameId = window.requestAnimationFrame(() => {
+      resultsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [previewRequestId]);
 
   const handleTabSwitch = (tabId: string) => {
     if (tabId === '2') {
@@ -43,7 +71,7 @@ export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => 
   };
 
   return (
-    <div>
+    <div ref={resultsPanelRef}>
       <Nav tabs>
         <NavItem>
           <NavLink
@@ -62,7 +90,7 @@ export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => 
               handleTabSwitch('2');
             }}
           >
-            {`${resultTitle}${result ? ` (${result.rowCount || 0})` : ''}`}
+            {resultTitle}
           </NavLink>
         </NavItem>
       </Nav>
@@ -80,7 +108,10 @@ export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => 
           <Container fluid>
             <Row>
               <Col sm="12" className="p-1">
-                <ResultTable />
+                <ResultTable
+                  showReturnToEditor={hasPreviewRequest}
+                  onReturnToEditor={onReturnToEditor}
+                />
               </Col>
             </Row>
           </Container>
