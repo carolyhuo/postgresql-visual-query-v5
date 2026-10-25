@@ -4,12 +4,19 @@ import { query, updateValidity } from '../actions/queryActions';
 import { translations } from '../utils/translations';
 import { validateSql } from '../utils/validateQuery';
 import { useAppDispatch, useAppSelector } from '../hooks';
+import { buildActiveQuerySql } from '../utils/queryBuilder';
 
 export const QueryButton: React.FC = () => {
   const dispatch = useAppDispatch();
-  const sql = useAppSelector((state) => state.query.sql);
+  const queryState = useAppSelector((state) => state.query);
+  const queries = useAppSelector((state) => state.queries);
+  const sql = queryState.sql;
   const language = useAppSelector((state) => state.settings.language);
-  const querying = useAppSelector((state) => state.query.querying);
+  const querying = queryState.querying;
+  const activeCte = queryState.ctes?.find(
+    (cte) => cte.id === queryState.activeTab || cte.name === queryState.activeTab,
+  );
+  const isCtePreview = queryState.activeTab !== undefined && queryState.activeTab !== 'main' && !!activeCte;
   const hostDetails = useAppSelector((state) => ({
     database: state.host.database,
     user: state.host.user,
@@ -17,7 +24,23 @@ export const QueryButton: React.FC = () => {
   }));
 
   const handleOnClick = () => {
-    const isValid = validateSql(sql);
+    let executionSql = sql;
+    if (isCtePreview) {
+      const previewLimit = queryState.limit && queryState.limitValue
+        ? Math.min(queryState.limitValue, 50)
+        : 50;
+      executionSql = buildActiveQuerySql(
+        {
+          ...queryState,
+          limit: true,
+          limitValue: previewLimit,
+          withTies: false,
+        },
+        [...(queries || []), queryState],
+      );
+    }
+
+    const isValid = validateSql(executionSql);
 
     dispatch(updateValidity({ isValid }));
 
@@ -25,7 +48,8 @@ export const QueryButton: React.FC = () => {
       dispatch(
         query({
           ...hostDetails,
-          sql,
+          sql: executionSql,
+          ...(isCtePreview ? { maxRows: 50 } : {}),
         }),
       );
     }
@@ -39,7 +63,9 @@ export const QueryButton: React.FC = () => {
           <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
         </div>
       ) : (
-        translations[language.code].queryBuilder.queryB
+        isCtePreview
+          ? translations[language.code].queryBuilder.executeCtePreview
+          : translations[language.code].queryBuilder.queryB
       )}
     </Button>
   );

@@ -26,6 +26,10 @@ export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => 
   }));
 
   const [isFloating, setIsFloating] = useState(false);
+  const isCtePreview = !!query.activeTab && query.activeTab !== 'main';
+  const resultTitle = isCtePreview
+    ? translations[language.code].queryBuilder.ctePreviewResult
+    : translations[language.code].queryBuilder.resultH;
 
   const handleTabSwitch = (tabId: string) => {
     if (tabId === '2') {
@@ -58,7 +62,7 @@ export const ResultTabs: React.FC<ResultTabsProps> = ({ activeTab, toggle }) => 
               handleTabSwitch('2');
             }}
           >
-            {`${translations[language.code].queryBuilder.resultH}${result ? ` (${result.rowCount || 0})` : ''}`}
+            {`${resultTitle}${result ? ` (${result.rowCount || 0})` : ''}`}
           </NavLink>
         </NavItem>
       </Nav>

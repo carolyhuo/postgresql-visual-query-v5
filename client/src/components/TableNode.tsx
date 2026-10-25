@@ -12,7 +12,7 @@ function TableNode({ data }: any) {
   const { table, index, isDraggable } = data || { table: {}, index: 0, isDraggable: false };
 
   return (
-    <div className="table-node">
+    <div className={`table-node${table?.table_type === 'CTE' ? ' table-node-cte' : ''}`}>
       {isDraggable && (
         <div className="table-drag-handle">
           <i className="fa fa-arrows-alt mr-2" /> {translations[language.code].queryBuilder.dragToMove}

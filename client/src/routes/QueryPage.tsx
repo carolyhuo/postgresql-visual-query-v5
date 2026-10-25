@@ -23,9 +23,11 @@ import { useAppDispatch, useAppSelector } from '../hooks';
 import { JoinType, QueryTableType } from '../types/queryTypes';
 import {
   addJoin,
+  addCteToMainQuery,
   addTable,
   generateSql,
   setActiveQuery,
+  setActiveTab,
   UPDATE_TABLE_POSITIONS,
   updateJoin,
 } from '../actions/queryActions';
@@ -123,6 +125,8 @@ type QueryFlowNode = Node<{ table: QueryTableType; index: number; isDraggable: b
 const getFlowNodeId = (queryId: number, activeTab: string, tableId: number): string =>
   `query-${queryId}-${encodeURIComponent(activeTab)}-table-${tableId}`;
 
+const isFlowDiagnosticsEnabled = () => window.sessionStorage.getItem('debugFlowPositions') === '1';
+
 export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, queryType }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
@@ -136,6 +140,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const joins = useAppSelector((state) => state.query.joins);
   const query = useAppSelector((state) => state.query);
   const activeWorkspaceId = query.activeTab || 'main';
+  const activeCte = query.ctes?.find((cte) => cte.id === activeWorkspaceId);
   const sql = query.sql;
   const databaseMetadata = useAppSelector((state) => state.database);
   const [applySqlFeedback, setApplySqlFeedback] = useState<{ type: 'success' | 'danger'; message: string } | null>(
@@ -229,6 +234,16 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const handleNodesChange = useCallback(
     (changes: NodeChange<QueryFlowNode>[]) => {
       const updated = applyNodeChanges(changes, nodes);
+      if (isFlowDiagnosticsEnabled()) {
+        const positionChanges = changes.filter((change) => change.type === 'position');
+        const dimensionChanges = changes.filter((change) => change.type === 'dimensions');
+        if (positionChanges.length > 0 || dimensionChanges.length > 0) {
+          console.debug('[flow diagnostics] node changes', {
+            changes: [...positionChanges, ...dimensionChanges],
+            nodes: updated.map(({ id, position }) => ({ id, position })),
+          });
+        }
+      }
       const dimensionChanges = changes.filter((change) => change.type === 'dimensions');
       const immediateChanges = changes.filter((change) => change.type !== 'dimensions');
 
@@ -283,6 +298,9 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   // Handle viewport changes (pan & zoom)
   const onViewportChange = useCallback(
     (event: any, viewport: Viewport) => {
+      if (isFlowDiagnosticsEnabled()) {
+        console.debug('[flow diagnostics] viewport changed', viewport);
+      }
       saveFlowState(nodes, viewport);
     },
     [nodes, saveFlowState],
@@ -379,6 +397,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
             index,
             isDraggable: !['DELETE', 'UPDATE'].includes(queryType),
           },
+          dragHandle: '.table-drag-handle',
           draggable: !['DELETE', 'UPDATE'].includes(queryType),
         });
         return;
@@ -406,6 +425,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
           index,
           isDraggable: !['DELETE', 'UPDATE'].includes(queryType),
         },
+        dragHandle: '.table-drag-handle',
         draggable: !['DELETE', 'UPDATE'].includes(queryType),
       });
     });
@@ -718,6 +738,26 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
         </Alert>
       ) : null}
       {queryType === 'SELECT' && <QueryCteTabs />}
+      {queryType === 'SELECT' && activeCte && (
+        <div className="d-flex align-items-center justify-content-between flex-wrap border rounded px-3 py-2 mb-2 bg-light">
+          <strong>
+            {translations[language.code].queryBuilder.cteWorkspaceHeader} {activeCte.name}
+          </strong>
+          <div className="d-flex flex-wrap">
+            <Button
+              size="sm"
+              color="primary"
+              className="mr-2"
+              onClick={() => dispatch(addCteToMainQuery(activeCte.id))}
+            >
+              {translations[language.code].queryBuilder.addCteToMain}
+            </Button>
+            <Button size="sm" color="secondary" onClick={() => dispatch(setActiveTab('main'))}>
+              {translations[language.code].queryBuilder.backToMain}
+            </Button>
+          </div>
+        </div>
+      )}
       <ReactFlowProvider>
         <div ref={containerRef} className="grid-container">
           {['SELECT'].includes(queryType) && (
@@ -746,7 +786,6 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
                 }}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
-                fitView
                 zoomOnScroll={true}
                 preventScrolling={false}
                 panOnDrag={true}
@@ -804,11 +843,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
           <QueryButton />
           <span
             id="apply-to-canvas-button-wrapper"
-            title={
-              queryType === 'SELECT'
-                ? undefined
-                : translations[language.code].queryBuilder.applyToCanvasDisabled
-            }
+            title={translations[language.code].queryBuilder.applyToCanvasTooltip}
             className="d-inline-block"
           >
             <Button
@@ -822,7 +857,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
               onClick={handleApplySqlToCanvas}
             >
               <FontAwesomeIcon icon={faSyncAlt} className="mr-2" />
-              Apply to Canvas
+              {translations[language.code].queryBuilder.applySqlToCanvas}
             </Button>
             {queryType !== 'SELECT' && (
               <UncontrolledTooltip placement="top" target="apply-to-canvas-button-wrapper">

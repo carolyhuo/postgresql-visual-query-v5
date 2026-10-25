@@ -19,7 +19,15 @@ export const DatabaseViewer: React.FC = () => {
     columns,
     searchExpr,
   } = useAppSelector((state) => state.database);
-  const { tables: queryTables, queryType, ctes = [], activeTab } = useAppSelector((state) => state.query);
+  const {
+    tables: queryTables,
+    queryType,
+    ctes = [],
+    activeTab,
+    mainQueryBackup,
+  } = useAppSelector((state) => state.query);
+  const mainQueryTables =
+    activeTab && activeTab !== 'main' ? mainQueryBackup?.tables || [] : queryTables;
 
   const constructData = (table: DatabaseTableType): QueryTableType => {
     // Create a QueryTableType based on the DatabaseTableType
@@ -140,7 +148,9 @@ export const DatabaseViewer: React.FC = () => {
                 <CteSidebarTable
                   key={cte.id}
                   cte={cte}
-                  checked={queryTables.some((table) => table.table_type === 'CTE' && table.table_name === cte.name)}
+                  checked={mainQueryTables.some(
+                    (table) => table.table_type === 'CTE' && table.table_name === cte.name,
+                  )}
                   active={(activeTab || 'main') === cte.id}
                 />
               ))}

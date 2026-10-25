@@ -29,9 +29,16 @@
   max-width: 300px;
 }
 
+.table-node-cte {
+  width: 240px;
+}
+
+.table-node-cte > .card {
+  width: 100%;
+}
+
 .table-node:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
 }
 
 /* Edge styling - make edges more obvious and interactive */
@@ -215,6 +222,10 @@
   .table-node {
     max-width: 250px;
   }
+
+  .table-node-cte {
+    width: 220px;
+  }
 }
 
 /* Column container styling */
@@ -243,12 +254,6 @@
   background-color: #f0f0f0;
 }
 
-
-.react-flow__edges{
-  svg{
-    z-index: 999 !important;
-  }
-}
 
 .react-flow__controls-interactive{
   display: none !important;

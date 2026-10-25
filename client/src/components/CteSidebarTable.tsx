@@ -18,6 +18,7 @@ const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active 
   const dispatch = useAppDispatch();
   const language = useAppSelector((state) => state.settings.language);
   const table = createCteTable(cte);
+  const text = translations[language.code].queryBuilder;
   const disabledTooltip = 'Aktiivset vahetabelit ei saa iseenda sisse lohistada';
 
   return (
@@ -64,6 +65,9 @@ const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active 
               CTE TABLE
             </small>
             <div className="text-truncate">{` ${cte.name}`}</div>
+            <small className={`badge ${checked ? 'badge-success' : 'badge-light'}`}>
+              {checked ? text.cteUsedInMain : text.cteNotUsedInMain}
+            </small>
           </div>
         </div>
       </Button>

@@ -2,6 +2,7 @@ import axiosClient from '../utils/axiosClient';
 import { JoinType } from '../types/queryTypes';
 import { Dispatch } from 'redux';
 import { ThunkAction, ThunkDispatch } from 'redux-thunk';
+import { createCteTable } from '../utils/cteTableUtils';
 import {
   AddColumnAction,
   AddTableAction,
@@ -15,6 +16,7 @@ import {
   RemoveUsingAction,
   ResetQueryAction,
   SetActiveQueryAction,
+  SetActiveTabAction,
   SetLimitValueAction,
   UpdateColumnAction,
   UpdateColumnFilterAction,
@@ -222,7 +224,7 @@ export const query = (state: any) => async (dispatch: Dispatch<QueryActions>) =>
       user: state.user,
       password: state.password,
       sql: state.sql,
-      maxRows: 10000, // Server should respect this parameter to limit large result sets
+      maxRows: state.maxRows ?? 10000, // Server should respect this parameter to limit large result sets
     });
 
     dispatch({ type: ADD_RESULT_FULFILLED, payload: response.data });
@@ -291,7 +293,7 @@ export const resetQuery = (data: ResetQueryAction['payload']) => (dispatch: Disp
 export const updateSql = (sql: UpdateSqlAction['payload']) => ({ type: UPDATE_SQL, payload: sql });
 
 export const setActiveQuery = (data: SetActiveQueryAction['payload']) => ({ type: SET_ACTIVE_QUERY, payload: data });
-export const setActiveTab = (tabId: string) => ({ type: SET_ACTIVE_TAB, payload: tabId });
+export const setActiveTab = (tabId: string): SetActiveTabAction => ({ type: SET_ACTIVE_TAB, payload: tabId });
 
 export const addCte = (name: string) => (dispatch: ThunkDispatch<RootState, unknown, QueryActions>) => {
   const id = `cte-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -304,6 +306,25 @@ export const removeCte = (id: string) => (dispatch: ThunkDispatch<RootState, unk
   dispatch({ type: REMOVE_CTE, payload: id });
   dispatch(generateSql());
 };
+
+export const addCteToMainQuery =
+  (cteId: string) =>
+  (dispatch: ThunkDispatch<RootState, unknown, QueryActions>, getState: () => RootState) => {
+    dispatch(setActiveTab('main'));
+    const { query } = getState();
+    const cte = query.ctes?.find((item: { id: string }) => item.id === cteId);
+    if (!cte) {
+      throw new Error(`Unable to find CTE "${cteId}" to add to the main query.`);
+    }
+
+    const alreadyAdded = query.tables.some(
+      (table: { table_type: string; table_name: string }) =>
+        table.table_type === 'CTE' && table.table_name === cte.name,
+    );
+    if (!alreadyAdded) {
+      dispatch(addTable(createCteTable(cte)));
+    }
+  };
 
 export const switchLimit = () => (dispatch: ThunkDispatch<RootState, unknown, QueryActions>) => {
   dispatch({ type: SWITCH_LIMIT });
