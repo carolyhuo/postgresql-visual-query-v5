@@ -120,15 +120,22 @@ interface SavedFlowState {
 
 type QueryFlowNode = Node<{ table: QueryTableType; index: number; isDraggable: boolean }>;
 
+const getFlowNodeId = (queryId: number, activeTab: string, tableId: number): string =>
+  `query-${queryId}-${encodeURIComponent(activeTab)}-table-${tableId}`;
+
 export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, queryType }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
   const reactFlowInstance = useRef<any>(null);
+  const hasInitialMainFit = useRef(false);
+  const pendingDimensionChanges = useRef<NodeChange<QueryFlowNode>[]>([]);
+  const dimensionUpdateFrame = useRef<number | null>(null);
   const language = useAppSelector((state) => state.settings.language);
 
   // Get joins data from redux state
   const joins = useAppSelector((state) => state.query.joins);
   const query = useAppSelector((state) => state.query);
+  const activeWorkspaceId = query.activeTab || 'main';
   const sql = query.sql;
   const databaseMetadata = useAppSelector((state) => state.database);
   const [applySqlFeedback, setApplySqlFeedback] = useState<{ type: 'success' | 'danger'; message: string } | null>(
@@ -222,9 +229,23 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const handleNodesChange = useCallback(
     (changes: NodeChange<QueryFlowNode>[]) => {
       const updated = applyNodeChanges(changes, nodes);
-      window.requestAnimationFrame(() => {
-        setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
-      });
+      const dimensionChanges = changes.filter((change) => change.type === 'dimensions');
+      const immediateChanges = changes.filter((change) => change.type !== 'dimensions');
+
+      if (immediateChanges.length > 0) {
+        setNodes((currentNodes) => applyNodeChanges(immediateChanges, currentNodes));
+      }
+      if (dimensionChanges.length > 0) {
+        pendingDimensionChanges.current.push(...dimensionChanges);
+        if (dimensionUpdateFrame.current === null) {
+          dimensionUpdateFrame.current = window.requestAnimationFrame(() => {
+            const queuedChanges = pendingDimensionChanges.current;
+            pendingDimensionChanges.current = [];
+            dimensionUpdateFrame.current = null;
+            setNodes((currentNodes) => applyNodeChanges(queuedChanges, currentNodes));
+          });
+        }
+      }
 
       if (reactFlowInstance.current) {
         saveFlowState(updated, reactFlowInstance.current.getViewport());
@@ -250,6 +271,15 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     [dispatch, nodes, setNodes, saveFlowState],
   );
 
+  useEffect(
+    () => () => {
+      if (dimensionUpdateFrame.current !== null) {
+        window.cancelAnimationFrame(dimensionUpdateFrame.current);
+      }
+    },
+    [],
+  );
+
   // Handle viewport changes (pan & zoom)
   const onViewportChange = useCallback(
     (event: any, viewport: Viewport) => {
@@ -262,16 +292,13 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
   const onInit = useCallback(
     (instance: any) => {
       reactFlowInstance.current = instance;
-
       const savedFlowState =
         sessionStorage.getItem(flowStateKey) ||
         ((query.activeTab || 'main') === 'main' ? sessionStorage.getItem(legacyFlowStateKey) : null);
 
       if (query.id === 0 && tables.length > 0 && !savedFlowState) {
         window.requestAnimationFrame(() => {
-          if (instance) {
-            instance.fitView({ padding: 0.2 });
-          }
+          instance.fitView({ padding: 0.2 });
         });
       }
     },
@@ -335,13 +362,16 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     const newNodes: QueryFlowNode[] = [];
     tables.forEach((table, index) => {
       // Check if we have a saved position for this table
-      const savedNode = savedState?.nodes?.find((n) => n.id === `table-${table.id}`);
+      const savedNode = savedState?.nodes?.find(
+        (n) =>
+          n.id === getFlowNodeId(query.id, activeWorkspaceId, table.id) || n.id === `table-${table.id}`,
+      );
       const savedPosition = savedNode?.position || table.position;
 
       if (savedPosition) {
         // If a saved position exists, use it
         newNodes.push({
-          id: `table-${table.id}`,
+          id: getFlowNodeId(query.id, activeWorkspaceId, table.id),
           type: 'tableNode',
           position: { ...savedPosition },
           data: {
@@ -368,7 +398,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
         : Math.floor(index / tablesPerRow) * gridConfig.verticalSpacing + 50;
 
       newNodes.push({
-        id: `table-${table.id}`,
+        id: getFlowNodeId(query.id, activeWorkspaceId, table.id),
         type: 'tableNode',
         position: { x: xPos, y: yPos },
         data: {
@@ -381,21 +411,39 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     });
 
     let viewportFrameId: number | null = null;
+    let fitViewFrameId: number | null = null;
     const frameId = window.requestAnimationFrame(() => {
       setNodes(newNodes);
-      if (savedState?.viewport) {
-        viewportFrameId = window.requestAnimationFrame(() =>
-          reactFlowInstance.current?.setViewport(savedState?.viewport as Viewport),
-        );
-      }
+      viewportFrameId = window.requestAnimationFrame(() => {
+        if (savedState?.viewport) {
+          reactFlowInstance.current?.setViewport(savedState.viewport as Viewport);
+        } else if ((query.activeTab || 'main') === 'main' && !hasInitialMainFit.current) {
+          hasInitialMainFit.current = true;
+          fitViewFrameId = window.requestAnimationFrame(() => {
+            reactFlowInstance.current?.fitView({ padding: 0.2 });
+          });
+        }
+      });
     });
     return () => {
       window.cancelAnimationFrame(frameId);
       if (viewportFrameId !== null) {
         window.cancelAnimationFrame(viewportFrameId);
       }
+      if (fitViewFrameId !== null) {
+        window.cancelAnimationFrame(fitViewFrameId);
+      }
     };
-  }, [tables, containerWidth, queryType, setNodes, query.id, query.activeTab, flowStateKey, legacyFlowStateKey]);
+  }, [
+    tables,
+    containerWidth,
+    queryType,
+    setNodes,
+    query.id,
+    activeWorkspaceId,
+    flowStateKey,
+    legacyFlowStateKey,
+  ]);
 
   const getMarker = (joinType: string) => {
     const marker = {
@@ -430,8 +478,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
     const createEdges = () => {
       const newEdges = joins.flatMap((join: JoinType): ReactFlowEdge[] => {
         return join.conditions.map((condition, condIndex) => {
-          const sourceId = `table-${condition.main_table.id}`;
-          const targetId = `table-${condition.secondary_table.id}`;
+          const sourceId = getFlowNodeId(query.id, activeWorkspaceId, condition.main_table.id);
+          const targetId = getFlowNodeId(query.id, activeWorkspaceId, condition.secondary_table.id);
           const sourceSide = condition.main_table.joinHandleSide || 'right';
           const targetSide = condition.secondary_table.joinHandleSide || 'left';
           const sourceHandle = `${condition.main_table.id}-${condition.main_column}-${sourceSide}-source`;
@@ -485,7 +533,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
 
     const frameId = window.requestAnimationFrame(createEdges);
     return () => window.cancelAnimationFrame(frameId);
-  }, [joins, setEdges, tables, activeEdgeId, query.id]);
+  }, [joins, setEdges, tables, activeEdgeId, query.id, activeWorkspaceId]);
 
   // Handle new connections
 
@@ -715,7 +763,6 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ tables, queryValid, 
                 onEdgeClick={(event, clickedEdge) => {
                   setActiveEdgeId((clickedEdge as any).id);
                 }}
-                key={`flow-${query.id}`}
               >
                 <Controls />
                 <Background gap={16} color="#f8f8f8" />

@@ -119,11 +119,12 @@ const QueryTableBody: React.FC<QueryTableBodyProps> = React.memo(({ data, id, co
     [],
   );
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       debouncedResize.cancel();
-    };
-  }, [debouncedResize]);
+    },
+    [debouncedResize],
+  );
 
   // Create a special "select all" column for the table using the utility function
   const allColumnsData = createEmptyColumn({

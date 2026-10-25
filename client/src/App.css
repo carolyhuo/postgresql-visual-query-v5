@@ -1,4 +1,0 @@
-iframe#webpack-dev-server-client-overlay,
-div[class*="webpack-dev-server"] {
-  display: none !important;
-}
