@@ -21,6 +21,17 @@ const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active,
   const table = createCteTable(cte);
   const text = translations[language.code].sideBar;
   const disabledTooltip = 'Aktiivset vahetabelit ei saa iseenda sisse lohistada';
+  let statusLabel: string;
+
+  if (active) {
+    statusLabel = text.cteActiveView;
+  } else if (isMainView) {
+    statusLabel = checked ? text.cteUsedInMain : text.cteNotUsedInMain;
+  } else {
+    statusLabel = checked ? text.cteUsedInView : text.cteNotInView;
+  }
+
+  const statusBadgeClass = active ? 'badge-info' : checked ? 'badge-success' : 'badge-light';
 
   return (
     <div
@@ -66,15 +77,7 @@ const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active,
               CTE TABLE
             </small>
             <div className="text-truncate">{` ${cte.name}`}</div>
-            <small className={`badge ${checked ? 'badge-success' : 'badge-light'}`}>
-              {isMainView
-                ? checked
-                  ? text.cteUsedInMain
-                  : text.cteNotUsedInMain
-                : checked
-                  ? text.cteUsedInView
-                  : text.cteNotInView}
-            </small>
+            <small className={`badge ${statusBadgeClass}`}>{statusLabel}</small>
           </div>
         </div>
       </Button>

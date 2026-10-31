@@ -297,3 +297,26 @@
 .react-flow__controls-interactive{
   display: none !important;
 }
+.cte-tab-add-action {
+  display: inline-flex;
+  align-self: stretch;
+  align-items: center;
+  border: 0;
+  background-color: #f1f5f9;
+  color: #334155;
+  font-size: 0.875rem;
+  min-height: 31px;
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+}
+
+.cte-tab-add-action:hover,
+.cte-tab-add-action:focus-visible {
+  background-color: #cbd5e1;
+  color: #334155;
+}
+
+.cte-tab-add-action:focus-visible {
+  outline: 2px solid #64748b;
+  outline-offset: -2px;
+}

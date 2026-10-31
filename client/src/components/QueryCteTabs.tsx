@@ -17,14 +17,16 @@ const QueryCteTabs: React.FC = () => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [cteName, setCteName] = useState('');
   const [nameExists, setNameExists] = useState(false);
+  const normalizedCteName = cteName.trim().replace(/\s+/g, '_');
+  const isCteNameValid = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(normalizedCteName);
 
   if (queryType !== 'SELECT') {
     return null;
   }
 
   const handleAddCte = (): void => {
-    const name = cteName.trim();
-    if (!name) {
+    const name = normalizedCteName;
+    if (!isCteNameValid) {
       return;
     }
 
@@ -82,14 +84,15 @@ const QueryCteTabs: React.FC = () => {
       ))}
       <button
         type="button"
-        className="btn btn-sm btn-outline-primary rounded-0 ml-1"
+        className="btn btn-sm rounded-0 cte-tab-add-action"
         onClick={() => {
           setCteName('');
           setNameExists(false);
           setCreateModalOpen(true);
         }}
       >
-        + {text.addCte}
+        <span aria-hidden="true">＋</span>
+        <span className="ml-1">{text.addCte}</span>
       </button>
       <Modal isOpen={isCreateModalOpen} toggle={() => setCreateModalOpen(false)}>
         <ModalHeader toggle={() => setCreateModalOpen(false)}>{text.cteCreateTitle}</ModalHeader>
@@ -101,7 +104,8 @@ const QueryCteTabs: React.FC = () => {
               autoFocus
               value={cteName}
               placeholder={text.cteNamePlaceholder}
-              invalid={nameExists}
+              invalid={nameExists || (Boolean(normalizedCteName) && !isCteNameValid)}
+              onBlur={() => setCteName(normalizedCteName)}
               onChange={(event) => {
                 setCteName(event.target.value);
                 setNameExists(false);
@@ -114,6 +118,9 @@ const QueryCteTabs: React.FC = () => {
               }}
             />
             {nameExists && <div className="text-danger small mt-1">{text.cteNameExists}</div>}
+            {!nameExists && normalizedCteName && !isCteNameValid && (
+              <div className="text-danger small mt-1">{text.cteInvalidName}</div>
+            )}
             <small className="form-text text-muted">{text.cteDescription}</small>
           </FormGroup>
         </ModalBody>
@@ -121,7 +128,7 @@ const QueryCteTabs: React.FC = () => {
           <Button color="secondary" onClick={() => setCreateModalOpen(false)}>
             {text.cancelCteCreation}
           </Button>
-          <Button color="primary" onClick={handleAddCte} disabled={!cteName.trim()}>
+          <Button color="primary" onClick={handleAddCte} disabled={!isCteNameValid}>
             {text.createCte}
           </Button>
         </ModalFooter>

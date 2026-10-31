@@ -40,6 +40,7 @@ export const translations = {
       cteNotUsedInMain: 'Not used yet',
       cteUsedInView: 'In use',
       cteNotInView: 'Not in use',
+      cteActiveView: 'Active view',
     },
     saveQuery: {
       buttonText: 'Save Query',
@@ -135,13 +136,15 @@ export const translations = {
       filterPh: 'Filter',
       conditionH: 'Add condition',
       queryH: 'New query',
-      addCte: 'Add Intermediate Result (CTE)',
+      addCte: 'Add intermediate result',
       cteNamePrompt: 'CTE name:',
       cteCreateTitle: 'Add an intermediate result (CTE)',
       cteNamePlaceholder: 'e.g. cities_by_country',
       cteDescription:
         'An intermediate result is a temporary named query you can use in the main query like a table. It does not alter the database.',
       cteNameExists: 'A CTE with this name already exists.',
+      cteInvalidName:
+        'Use a SQL identifier: start with a letter or underscore, then use only letters, numbers, or underscores.',
       ctePrefix: 'CTE:',
       removeCte: 'Remove CTE',
       closeCteTab: 'Close intermediate result',
@@ -326,6 +329,7 @@ export const translations = {
       cteNotUsedInMain: 'Pole veel kasutusel',
       cteUsedInView: 'Kasutusel',
       cteNotInView: 'Pole kasutusel',
+      cteActiveView: 'Aktiivne vaade',
     },
     saveQuery: {
       buttonText: 'Salvesta päring',
@@ -421,13 +425,15 @@ export const translations = {
       filterPh: 'Piirang',
       conditionH: 'Tingimuse lisamine',
       queryH: 'Uus päring',
-      addCte: 'Lisa vahetulemus (CTE)',
+      addCte: 'Lisa vahetulemus',
       cteNamePrompt: 'CTE nimi:',
       cteCreateTitle: 'Vahetulemuse lisamine (CTE)',
       cteNamePlaceholder: 'nt linnad_riigiti',
       cteDescription:
         'Vahetulemus on ajutine nimega päring, mida saad kasutada põhipäringus nagu tavalist tabelit. See ei muuda andmebaasi.',
       cteNameExists: 'Sellise nimega CTE on juba olemas.',
+      cteInvalidName:
+        'Kasuta SQL-i identifikaatorit: alusta tähe või alakriipsuga ning kasuta seejärel ainult tähti, numbreid või alakriipse.',
       ctePrefix: 'CTE:',
       removeCte: 'Eemalda CTE',
       closeCteTab: 'Sulge vahetulemus',

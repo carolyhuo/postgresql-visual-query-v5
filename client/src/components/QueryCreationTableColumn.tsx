@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import _ from 'lodash';
 import { Button, Input, CustomInput } from 'reactstrap';
 import { removeColumn, updateColumn } from '../actions/queryActions';
@@ -31,28 +31,33 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
 
   const scalarFunctions = getScalarFunctions();
   const singleLineFunctions = getAggregateFunctions();
-  const availableWindowFunctions = getAvailableWindowFunctions(data.data_type || '');
-  const windowColumnOptions = Array.from(
-    new Map(
-      columns
-        .filter(
-          (column) =>
-            column.column_name &&
-            column.column_name !== '*' &&
-            column.column_name === column.column_name_original,
-        )
-        .map((column) => {
-          const tableRef = column.table_alias || column.table_name;
-          const columnRef = tableRef
-            ? `${quoteIdentifier(tableRef)}.${quoteIdentifier(column.column_name)}`
-            : quoteIdentifier(column.column_name);
-          const label = `${tableRef ? `${tableRef}.` : ''}${column.column_name}${
-            column.column_alias ? ` (${column.column_alias})` : ''
-          }`;
+  const availableWindowFunctions = useMemo(() => getAvailableWindowFunctions(data.data_type || ''), [data.data_type]);
+  const windowColumns = useMemo(
+    () =>
+      columns.filter(
+        (column) =>
+          column.column_name && column.column_name !== '*' && column.column_name === column.column_name_original,
+      ),
+    [columns],
+  );
+  const windowColumnOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          windowColumns.map((column) => {
+            const tableRef = column.table_alias || column.table_name;
+            const columnRef = tableRef
+              ? `${quoteIdentifier(tableRef)}.${quoteIdentifier(column.column_name)}`
+              : quoteIdentifier(column.column_name);
+            const label = `${tableRef ? `${tableRef}.` : ''}${column.column_name}${
+              column.column_alias ? ` (${column.column_alias})` : ''
+            }`;
 
-          return [columnRef, label] as const;
-        }),
-    ).entries(),
+            return [columnRef, label] as const;
+          }),
+        ).entries(),
+      ),
+    [windowColumns],
   );
   const windowOrderDirection = data.window_order_by?.match(/\s+(ASC|DESC)$/i)?.[1]?.toUpperCase() || 'ASC';
   const windowOrderColumn = data.window_order_by?.replace(/\s+(ASC|DESC)$/i, '') || '';

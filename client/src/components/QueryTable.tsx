@@ -36,70 +36,72 @@ const QueryTableHeader: React.FC<QueryTableHeaderProps> = ({
 
   return (
     <CardTitle
-      className="d-flex pb-1 mb-0 border-bottom"
+      className="d-flex flex-column pb-1 mb-0 border-bottom"
       style={
         isCte
-          ? { backgroundColor: '#ede9fe', borderColor: '#c4b5fd', borderBottomColor: '#c4b5fd' }
+          ? { backgroundColor: '#ede9fe', borderBottomColor: '#c4b5fd' }
           : undefined
       }
     >
-      <div className="px-1 flex-fill d-flex">
-        <Button
-          outline
-          color={isCte ? 'link' : 'info'}
-          id={target}
-          type="button"
-          className="align-self-center btn-block p-0 px-1 text-left text-truncate"
-          style={isCte ? { color: '#4c1d95', borderColor: '#c4b5fd', textDecoration: 'none' } : undefined}
-        >
-          {data.table_alias ? `${data.table_name} (${data.table_alias})` : data.table_name}
+      <div className="d-flex align-items-center justify-content-between px-1" style={{ minWidth: 0 }}>
+        <div className="d-flex align-items-center" style={{ minWidth: 0, flex: '1 1 auto' }}>
+          <span
+            id={target}
+            title={data.table_name}
+            className="text-truncate"
+            style={{ minWidth: 0, maxWidth: '150px', color: isCte ? '#4c1d95' : undefined }}
+          >
+            {data.table_name}
+          </span>
           {isCte && (
             <span
-              className="badge ml-2"
-              style={{ backgroundColor: '#7c3aed', color: '#fff', fontSize: '10px' }}
+              className="badge"
+              style={{ backgroundColor: '#7c3aed', color: '#fff', fontSize: '10px', marginLeft: '6px' }}
             >
               CTE
             </span>
           )}
-        </Button>
-        <UncontrolledTooltip placement="top" target={target} className="text-truncate">
-          {data.table_schema}
-        </UncontrolledTooltip>
+          <UncontrolledTooltip placement="top" target={target} className="text-truncate">
+            {data.table_schema}
+          </UncontrolledTooltip>
+        </div>
+        <ButtonGroup style={{ flexShrink: 0 }}>
+          <Button
+            size="sm"
+            className="close-button"
+            style={{ borderTopLeftRadius: '0px' }}
+            onClick={handleCopy}
+            id={`${target}_copy`}
+            aria-label={translations[language.code].tooltips.copyTable}
+            title={translations[language.code].tooltips.copyTable}
+          >
+            <FontAwesomeIcon icon="copy" color={'#4c4c4c'} />
+          </Button>
+          <Button
+            size="sm"
+            className="align-self-start close-button nodrag"
+            style={{ borderBottomRightRadius: '0px' }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleRemoveTable();
+            }}
+            id={`${target}_remove`}
+            aria-label={`Remove ${data.table_name}`}
+            title={`Remove ${data.table_name}`}
+          >
+            <FontAwesomeIcon icon="times" color={'#4c4c4c'} />
+          </Button>
+        </ButtonGroup>
       </div>
-      <ButtonGroup>
-        <Button
-          size="sm"
-          // color="secondary"
-          className="close-button"
-          style={{ borderTopLeftRadius: '0px' }}
-          onClick={handleCopy}
-          id={`${target}_copy`}
+      {data.table_alias && data.table_alias !== data.table_name && (
+        <span
+          className="px-1"
+          style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', lineHeight: 1.2 }}
         >
-          <FontAwesomeIcon icon="copy" color={'#4c4c4c'} />
-        </Button>
-        <UncontrolledTooltip
-          placement="top"
-          target={`${target}_copy`}
-          delay={{ show: 500, hide: 0 }}
-          className="text-truncate"
-        >
-          {translations[language.code].tooltips.copyTable}
-        </UncontrolledTooltip>
-        <Button
-          size="sm"
-          className="align-self-start close-button nodrag"
-          // color="danger"
-          style={{ borderBottomRightRadius: '0px' }}
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            handleRemoveTable();
-          }}
-          id={`${target}_remove`}
-        >
-          <FontAwesomeIcon icon="times" color={'#4c4c4c'} />
-        </Button>
-      </ButtonGroup>
+          alias: {data.table_alias}
+        </span>
+      )}
       <QueryTablePopover target={target} data={data} toggle={togglePopover} toggleStatus={popoverOpen} />
     </CardTitle>
   );

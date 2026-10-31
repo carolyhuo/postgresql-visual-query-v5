@@ -179,6 +179,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const hasInitialMainFit = useRef(false);
   const pendingDimensionChanges = useRef<NodeChange<QueryFlowNode>[]>([]);
   const dimensionUpdateFrame = useRef<number | null>(null);
+  const pendingFitFrames = useRef<number[]>([]);
   const language = useAppSelector((state) => state.settings.language);
 
   // Get joins data from redux state
@@ -205,6 +206,14 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
   }, [applySqlFeedback]);
   const flowStateKey = `flow-state-${query.id}-${query.activeTab || 'main'}`;
   const legacyFlowStateKey = `flow-state-${query.id}`;
+
+  useEffect(
+    () => () => {
+      pendingFitFrames.current.forEach((frameId) => window.cancelAnimationFrame(frameId));
+      pendingFitFrames.current = [];
+    },
+    [activeWorkspaceId, query.id],
+  );
 
   // Track active edge ID
   const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null);
@@ -259,11 +268,17 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
   };
 
   const fitCanvasToView = () => {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
+    let firstFrameId = 0;
+    firstFrameId = window.requestAnimationFrame(() => {
+      pendingFitFrames.current = pendingFitFrames.current.filter((frameId) => frameId !== firstFrameId);
+      let secondFrameId = 0;
+      secondFrameId = window.requestAnimationFrame(() => {
+        pendingFitFrames.current = pendingFitFrames.current.filter((frameId) => frameId !== secondFrameId);
         reactFlowInstance.current?.fitView({ padding: 0.2, duration: 300 });
       });
+      pendingFitFrames.current.push(secondFrameId);
     });
+    pendingFitFrames.current.push(firstFrameId);
   };
 
   const handleApplySqlToCanvas = () => {
