@@ -24,10 +24,8 @@ export const DatabaseViewer: React.FC = () => {
     queryType,
     ctes = [],
     activeTab,
-    mainQueryBackup,
   } = useAppSelector((state) => state.query);
-  const mainQueryTables =
-    activeTab && activeTab !== 'main' ? mainQueryBackup?.tables || [] : queryTables;
+  const isMainView = !activeTab || activeTab === 'main';
 
   const constructData = (table: DatabaseTableType): QueryTableType => {
     // Create a QueryTableType based on the DatabaseTableType
@@ -78,7 +76,10 @@ export const DatabaseViewer: React.FC = () => {
 
     // Get columns for this table
     const tableColumns = columns.filter(
-      (column) => column.table_name === table.table_name && column.table_schema === table.table_schema,
+      (column) =>
+        column.table_name === table.table_name &&
+        column.table_schema === table.table_schema &&
+        column.column_name.toLowerCase() !== 'xmin',
     );
 
     // Convert database columns to query columns
@@ -148,10 +149,11 @@ export const DatabaseViewer: React.FC = () => {
                 <CteSidebarTable
                   key={cte.id}
                   cte={cte}
-                  checked={mainQueryTables.some(
+                  checked={queryTables.some(
                     (table) => table.table_type === 'CTE' && table.table_name === cte.name,
                   )}
                   active={(activeTab || 'main') === cte.id}
+                  isMainView={isMainView}
                 />
               ))}
             </section>

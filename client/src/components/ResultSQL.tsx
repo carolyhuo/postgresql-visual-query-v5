@@ -77,10 +77,11 @@ export const ResultSQL: React.FC<ResultSQLProps> = ({ isFloating, onFloatToggle,
         >
           <span>SQL Editor</span>
           <button
+            type="button"
+            aria-label={translations[language.code].queryBuilder.dock}
             onClick={() => onFloatToggle(false)}
             className="btn btn-sm btn-outline-secondary"
             style={{ padding: '2px 8px' }}
-            type="button"
           >
             <strong>{translations[language.code].queryBuilder.dock}</strong>
           </button>
@@ -108,6 +109,8 @@ export const ResultSQL: React.FC<ResultSQLProps> = ({ isFloating, onFloatToggle,
       </div>
       {!isFloating && (
         <button
+          type="button"
+          aria-label={translations[language.code].queryBuilder.float}
           onClick={() => onFloatToggle(true)}
           className="btn btn-sm btn-outline-secondary"
           style={{
@@ -116,7 +119,6 @@ export const ResultSQL: React.FC<ResultSQLProps> = ({ isFloating, onFloatToggle,
             right: '8px',
             padding: '2px 8px',
           }}
-          type="button"
         >
           <strong>{translations[language.code].queryBuilder.float}</strong>
         </button>

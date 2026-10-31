@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "node-sql-parser": "^5.4.0"
+  },
+  "scripts": {
+    "lint": "npm run lint --prefix client && npm run lint --prefix server",
+    "test:all": "npm run test:semantic --prefix client"
   }
 }

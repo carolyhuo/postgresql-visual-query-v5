@@ -50,8 +50,10 @@ import {
   Node,
   NodeChange,
   NodeTypes as ReactFlowNodeTypes,
+  OnMove,
   Panel,
   ReactFlow,
+  ReactFlowInstance,
   ReactFlowProvider,
   useNodes,
   useEdgesState,
@@ -172,7 +174,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const dispatch = useAppDispatch();
   const [canvasLayout, setCanvasLayout] = useState<CanvasLayout>('expanded');
   const previousVisibleCanvasLayout = useRef<'compact' | 'expanded'>('expanded');
-  const reactFlowInstance = useRef<any>(null);
+  const reactFlowInstance = useRef<ReactFlowInstance<QueryFlowNode, ReactFlowEdge> | null>(null);
   const pendingMainCteFocus = useRef<number | null>(null);
   const hasInitialMainFit = useRef(false);
   const pendingDimensionChanges = useRef<NodeChange<QueryFlowNode>[]>([]);
@@ -215,7 +217,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   const [nodes, setNodes] = useNodesState<QueryFlowNode>([]);
   // @ts-ignore - bypass TypeScript errors for edge state
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<ReactFlowEdge>([]);
 
   // Define node types and edge types
   const nodeTypes = { tableNode: TableNode } as ReactFlowNodeTypes;
@@ -380,8 +382,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
   );
 
   // Handle viewport changes (pan & zoom)
-  const onViewportChange = useCallback(
-    (event: any, viewport: Viewport) => {
+  const onViewportChange = useCallback<OnMove>(
+    (event, viewport) => {
       if (isFlowDiagnosticsEnabled()) {
         console.debug('[flow diagnostics] viewport changed', viewport);
       }
@@ -392,7 +394,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   // Function to get ReactFlow instance
   const onInit = useCallback(
-    (instance: any) => {
+    (instance: ReactFlowInstance<QueryFlowNode, ReactFlowEdge>) => {
       reactFlowInstance.current = instance;
       const savedFlowState =
         sessionStorage.getItem(flowStateKey) ||
@@ -829,9 +831,11 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
           </strong>
           <div className="d-flex flex-wrap">
             <Button
+              type="button"
               size="sm"
               color="primary"
               className="mr-2"
+              aria-label={translations[language.code].queryBuilder.previewCte}
               disabled={query.querying}
               onClick={() => {
                 onCtePreviewStart();
@@ -842,9 +846,15 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
               {translations[language.code].queryBuilder.previewCte}
             </Button>
             <Button
+              type="button"
               size="sm"
               color="primary"
               className="mr-2"
+              aria-label={
+                activeCteTable
+                  ? translations[language.code].queryBuilder.showInMain
+                  : translations[language.code].queryBuilder.addCteToMain
+              }
               onClick={() => {
                 if (activeCteTable) {
                   pendingMainCteFocus.current = activeCteTable.id;
@@ -858,7 +868,13 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 ? translations[language.code].queryBuilder.showInMain
                 : translations[language.code].queryBuilder.addCteToMain}
             </Button>
-            <Button size="sm" color="secondary" onClick={() => dispatch(setActiveTab('main'))}>
+            <Button
+              type="button"
+              size="sm"
+              color="secondary"
+              aria-label={translations[language.code].queryBuilder.backToMain}
+              onClick={() => dispatch(setActiveTab('main'))}
+            >
               {translations[language.code].queryBuilder.backToMain}
             </Button>
           </div>
@@ -873,6 +889,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                   type="button"
                   color="light"
                   className="w-100 text-left mb-2 canvas-show-banner"
+                  aria-label={translations[language.code].queryBuilder.canvasShow}
                   onClick={() => setCanvasLayout(previousVisibleCanvasLayout.current)}
                 >
                   ▼ {translations[language.code].queryBuilder.canvasShow}
@@ -884,6 +901,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                     size="sm"
                     color={canvasLayout === 'compact' ? 'secondary' : 'light'}
                     aria-pressed={canvasLayout === 'compact'}
+                    aria-label={translations[language.code].queryBuilder.canvasCompact}
                     onClick={() => setVisibleCanvasLayout('compact')}
                   >
                     ⤢ {translations[language.code].queryBuilder.canvasCompact}
@@ -894,6 +912,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                     color={canvasLayout === 'expanded' ? 'secondary' : 'light'}
                     aria-pressed={canvasLayout === 'expanded'}
                     className="ml-1"
+                    aria-label={translations[language.code].queryBuilder.canvasExpanded}
                     onClick={() => setVisibleCanvasLayout('expanded')}
                   >
                     ⤢ {translations[language.code].queryBuilder.canvasExpanded}
@@ -903,6 +922,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                     size="sm"
                     color="light"
                     className="ml-1"
+                    aria-label={translations[language.code].queryBuilder.canvasFit}
                     onClick={fitCanvasToView}
                   >
                     ⛶ {translations[language.code].queryBuilder.canvasFit}
@@ -912,6 +932,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                     size="sm"
                     color="light"
                     className="ml-1"
+                    aria-label={translations[language.code].queryBuilder.canvasHide}
                     onClick={() => {
                       previousVisibleCanvasLayout.current = canvasLayout;
                       setCanvasLayout('hidden');
@@ -967,7 +988,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 proOptions={{ hideAttribution: true }}
                 className="react-flow-container"
                 onEdgeClick={(event, clickedEdge) => {
-                  setActiveEdgeId((clickedEdge as any).id);
+                  setActiveEdgeId(clickedEdge.id);
                 }}
               >
                 <Controls />
@@ -1022,6 +1043,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({
               outline
               className="mr-2"
               disabled={queryType !== 'SELECT'}
+              aria-label={translations[language.code].queryBuilder.applySqlToCanvas}
               style={queryType !== 'SELECT' ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               onClick={handleApplySqlToCanvas}
             >

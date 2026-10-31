@@ -1173,6 +1173,31 @@ export const buildActiveQuerySql = (data: QueryType, queries: QueryType[]): stri
   return buildQuery({ data: activeQuery, queries });
 };
 
+export const buildCtePreviewSql = (data: QueryType, queries: QueryType[]): string => {
+  const activeTab = data.activeTab || 'main';
+  const activeIndex = (data.ctes || []).findIndex(
+    (cte) => cte.id === activeTab || cte.name === activeTab,
+  );
+  if (activeIndex < 0) {
+    throw new Error(`Cannot build CTE preview SQL: active CTE "${activeTab}" was not found.`);
+  }
+
+  const ctes = data.ctes || [];
+  const activeWorkspace = _.omit(data, ['ctes', 'activeTab', 'mainQueryBackup']);
+  const priorCtes = ctes.slice(0, activeIndex);
+  const previewQuery = {
+    ...activeWorkspace,
+    activeTab: 'main',
+    ctes: priorCtes,
+    mainQueryBackup: null,
+    limit: true,
+    limitValue: data.limit && data.limitValue ? Math.min(data.limitValue, 50) : 50,
+    withTies: false,
+  };
+
+  return buildQuery({ data: previewQuery, queries });
+};
+
 /**
  * Adds ORDER BY clauses for set operations
  * Handles ordering across multiple queries in a set operation

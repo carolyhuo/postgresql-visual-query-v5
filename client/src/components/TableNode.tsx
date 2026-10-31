@@ -2,14 +2,23 @@ import React from 'react';
 import QueryTable from './QueryTable';
 import { useAppSelector } from '../hooks';
 import { translations } from '../utils/translations';
+import { Node, NodeProps } from '@xyflow/react';
+import { QueryTableType } from '../types/queryTypes';
 
 // TableNode component for displaying database tables in flow diagram
-function TableNode({ data }: any) {
+interface TableNodeData extends Record<string, unknown> {
+  table: QueryTableType;
+  index: number;
+  isDraggable: boolean;
+}
+
+type TableFlowNode = Node<TableNodeData>;
+
+const TableNode: React.FC<NodeProps<TableFlowNode>> = ({ data }) => {
   const { language } = useAppSelector((store) => ({
     language: store.settings.language,
   }));
-  // Extract data from the node
-  const { table, index, isDraggable } = data || { table: {}, index: 0, isDraggable: false };
+  const { table, index, isDraggable } = data;
 
   return (
     <div className={`table-node${table?.table_type === 'CTE' ? ' table-node-cte' : ''}`}>
@@ -23,6 +32,6 @@ function TableNode({ data }: any) {
       <QueryTable key={`query-table-${index}-${table.id}`} id={`query-table-${index}`} data={table} />
     </div>
   );
-}
+};
 
 export default TableNode;

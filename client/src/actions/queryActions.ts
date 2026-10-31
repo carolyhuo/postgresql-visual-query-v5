@@ -3,7 +3,7 @@ import { JoinType } from '../types/queryTypes';
 import { Dispatch } from 'redux';
 import { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import { createCteTable } from '../utils/cteTableUtils';
-import { buildActiveQuerySql } from '../utils/queryBuilder';
+import { buildCtePreviewSql } from '../utils/queryBuilder';
 import { validateSql } from '../utils/validateQuery';
 import {
   AddColumnAction,
@@ -253,17 +253,7 @@ export const executeCtePreview =
       throw new Error('Cannot preview a CTE when no CTE workspace is active.');
     }
 
-    const previewLimit =
-      queryState.limit && queryState.limitValue ? Math.min(queryState.limitValue, 50) : 50;
-    const sql = buildActiveQuerySql(
-      {
-        ...queryState,
-        limit: true,
-        limitValue: previewLimit,
-        withTies: false,
-      },
-      [...(state.queries || []), queryState],
-    );
+    const sql = buildCtePreviewSql(queryState, [...(state.queries || []), queryState]);
     const isValid = validateSql(sql);
     dispatch(updateValidity(isValid));
     if (!isValid) {

@@ -12,7 +12,10 @@ interface SchemaSelectorProps {
 
 export const SchemaSelector: React.FC<SchemaSelectorProps> = ({ toggle, toggleStatus }) => {
   const dispatch = useAppDispatch();
-  const schemas = useAppSelector((state) => state.database.schemas);
+  const schemas = useAppSelector((state) => state.database.schemas).filter((schema) => {
+    const normalizedSchema = schema.toLowerCase();
+    return normalizedSchema !== 'information_schema' && !normalizedSchema.startsWith('pg_');
+  });
   const selectedSchema = useAppSelector((state) => state.database.selectedSchema);
   const language = useAppSelector((state) => state.settings.language);
   const psqlVersion = useAppSelector((state) => state.host.psqlVersion);

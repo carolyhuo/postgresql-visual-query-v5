@@ -820,6 +820,41 @@ describe('query builder', () => {
     expect(sql).not.toContain('suured_linnad AS');
   });
 
+  test('includes preceding CTE definitions when previewing a chained CTE', () => {
+    const activeCteWorkspace = createValidQueryData();
+    const mainQueryBackup = createValidQueryData();
+    mainQueryBackup.tables[0].table_name = 'main_only';
+    mainQueryBackup.columns.forEach((column) => {
+      column.table_name = 'main_only';
+    });
+    activeCteWorkspace.tables[0].table_name = 'suured_linnad';
+    activeCteWorkspace.tables[0].table_schema = '';
+    activeCteWorkspace.tables[0].table_type = 'CTE';
+    activeCteWorkspace.columns.forEach((column) => {
+      column.table_name = 'suured_linnad';
+      column.table_schema = '';
+    });
+
+    const data = {
+      ...activeCteWorkspace,
+      activeTab: 'cte_2',
+      mainQueryBackup,
+      ctes: [
+        { id: 'cte_1', name: 'suured_linnad', query: createValidQueryData() },
+        { id: 'cte_2', name: 'linnade_kokkuvote', query: createValidQueryData() },
+        { id: 'cte_3', name: 'hilisem_vahetulemus', query: createValidQueryData() },
+      ],
+    };
+
+    const sql = queryBuilder.buildCtePreviewSql(data, []);
+
+    expect(sql).toContain('WITH suured_linnad AS (');
+    expect(sql).toContain('FROM suured_linnad');
+    expect(sql).not.toContain('linnade_kokkuvote AS');
+    expect(sql).not.toContain('hilisem_vahetulemus AS');
+    expect(sql).not.toContain('main_only');
+  });
+
   test('uses a CTE table as an unqualified FROM source', () => {
     const data = createValidQueryData();
     data.tables[0].table_name = 'suured_linnad';

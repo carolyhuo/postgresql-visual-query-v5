@@ -145,6 +145,7 @@ export const QueryCreationTable: React.FC<Record<string, never>> = () => {
     withTies: store.query.withTies,
     language: store.settings.language,
   }));
+  const visibleColumns = columns.filter((column) => column.column_name.toLowerCase() !== 'xmin');
 
   // Toggle tooltip visibility
   const toggleTooltip = (tooltipId: string) => {
@@ -152,7 +153,8 @@ export const QueryCreationTable: React.FC<Record<string, never>> = () => {
   };
 
   // Calculate maxConditions from all columns
-  const maxConditions = columns.length > 0 ? Math.max(...columns.map((col) => col.column_conditions.length)) : 2;
+  const maxConditions =
+    visibleColumns.length > 0 ? Math.max(...visibleColumns.map((col) => col.column_conditions.length)) : 2;
 
   // Create dynamic table labels array
   const baseLabels = [
@@ -194,15 +196,19 @@ export const QueryCreationTable: React.FC<Record<string, never>> = () => {
       return;
     }
 
-    const movedColumn = columns.find((column) => _.isEqual(draggableId, `query-column-${column.id}`));
+    const movedColumn = visibleColumns.find((column) => _.isEqual(draggableId, `query-column-${column.id}`));
 
     if (!movedColumn) {
       return;
     }
 
-    const newColumns = Array.from(columns);
-    newColumns.splice(source.index, 1);
-    newColumns.splice(destination.index, 0, movedColumn);
+    const reorderedVisibleColumns = Array.from(visibleColumns);
+    reorderedVisibleColumns.splice(source.index, 1);
+    reorderedVisibleColumns.splice(destination.index, 0, movedColumn);
+    let visibleIndex = 0;
+    const newColumns = columns.map((column) =>
+      column.column_name.toLowerCase() === 'xmin' ? column : reorderedVisibleColumns[visibleIndex++],
+    );
 
     dispatch(updateColumnsOrder(newColumns));
   };
@@ -260,12 +266,12 @@ export const QueryCreationTable: React.FC<Record<string, never>> = () => {
                   position: 'relative',
                 }}
               >
-                {columns.length === 0 && (
+                {visibleColumns.length === 0 && (
                   <div className={'columns-placeholder'}>
                     {translations[language.code].queryBuilder.selectColumnsFromTop}
                   </div>
                 )}
-                {columns.map((column, index) => (
+                {visibleColumns.map((column, index) => (
                   <QueryCreationTableColumn
                     key={column.id}
                     data={column}

@@ -103,19 +103,20 @@ INNER JOIN big_cities ON big_countries.code = big_cities.countrycode;`,
     id: 7,
     category: 'multi_cte',
     title: 'Aheldatud CTE (CTE 2 loeb andmeid CTE 1-st)',
-    description: 'Esimene CTE agregeerib ja teine CTE filtreerib agregeeritud tulemust.',
-    sql: `WITH raw_city_sums AS (
-  SELECT countrycode, COUNT(id) AS city_count, SUM(population) AS total_city_pop
+    description: 'Esimene CTE filtreerib suurlinnad ja teine loendab need riikide kaupa.',
+    sql: `WITH vahetulemus_1 AS (
+  SELECT countrycode, name, population
   FROM public.city
-  GROUP BY countrycode
+  WHERE population > 1000000
 ),
-major_urban_nations AS (
-  SELECT countrycode, total_city_pop
-  FROM raw_city_sums
-  WHERE city_count >= 5
+vahetulemus_2 AS (
+  SELECT countrycode, COUNT(*) AS large_city_count
+  FROM vahetulemus_1
+  GROUP BY countrycode
 )
-SELECT countrycode, total_city_pop
-FROM major_urban_nations;`,
+SELECT countrycode, large_city_count
+FROM vahetulemus_2
+WHERE large_city_count >= 3;`,
   },
   {
     id: 8,

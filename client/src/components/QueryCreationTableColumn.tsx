@@ -334,7 +334,10 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
   };
 
   const handleOnSave = (
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement> | React.ChangeEvent<HTMLSelectElement>,
+    e:
+      | React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+      | React.ChangeEvent<HTMLInputElement>
+      | React.ChangeEvent<HTMLSelectElement>,
   ) => {
     const name = e.target.name;
     const value = e.target.value;
@@ -602,7 +605,7 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 const value = e.target.value;
                 if (value === '' || parseInt(value, 10) > 0) {
-                  handleOnSave(e as any);
+                  handleOnSave(e);
                 }
               }}
               min="1"
@@ -657,7 +660,14 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
 
           {/* Criteria */}
           {Array.from({ length: maxConditions }).map((_, i) => (
-            <div key={i} style={{ height: '82px', padding: '0.35rem 0.5rem', borderBottom: '1px solid #ddd' }}>
+            <div
+              key={i}
+              style={{
+                height: data.column_aggregate ? '72px' : '56px',
+                padding: '0.35rem 0.5rem',
+                borderBottom: '1px solid #ddd',
+              }}
+            >
               {data.column_aggregate && (
                 <small className="d-block text-muted text-truncate mb-1">
                   {translations[language.code].queryBuilder.havingFilterLabel}
@@ -672,7 +682,14 @@ const QueryCreationTableColumn: React.FC<{ data: QueryColumnType; id: string; in
                 onChange={(e) => updateFilterValue(e, i)}
                 onBlur={() => handleFilterChange(i)}
                 className={`form-control ${!filterValid && i === activeInputIndex ? 'is-invalid' : ''}`}
-                style={{ resize: 'both', height: '38px' }}
+                style={{
+                  resize: 'none',
+                  height: '36px',
+                  minHeight: '36px',
+                  padding: '6px 12px',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                }}
               />
               {showQuerySuggestions && i === activeInputIndex && (
                 <div

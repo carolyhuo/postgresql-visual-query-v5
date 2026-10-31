@@ -12,13 +12,14 @@ interface CteSidebarTableProps {
   cte: CTEType;
   checked: boolean;
   active: boolean;
+  isMainView: boolean;
 }
 
-const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active }) => {
+const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active, isMainView }) => {
   const dispatch = useAppDispatch();
   const language = useAppSelector((state) => state.settings.language);
   const table = createCteTable(cte);
-  const text = translations[language.code].queryBuilder;
+  const text = translations[language.code].sideBar;
   const disabledTooltip = 'Aktiivset vahetabelit ei saa iseenda sisse lohistada';
 
   return (
@@ -66,7 +67,13 @@ const CteSidebarTable: React.FC<CteSidebarTableProps> = ({ cte, checked, active 
             </small>
             <div className="text-truncate">{` ${cte.name}`}</div>
             <small className={`badge ${checked ? 'badge-success' : 'badge-light'}`}>
-              {checked ? text.cteUsedInMain : text.cteNotUsedInMain}
+              {isMainView
+                ? checked
+                  ? text.cteUsedInMain
+                  : text.cteNotUsedInMain
+                : checked
+                  ? text.cteUsedInView
+                  : text.cteNotInView}
             </small>
           </div>
         </div>

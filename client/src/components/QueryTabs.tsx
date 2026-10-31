@@ -26,10 +26,14 @@ export const QueryTabs: React.FC = () => {
   return (
     <div>
       {queryType === 'SELECT' && (
-        <Nav tabs className="flex-row">
+        <Nav tabs className="flex-row" role="tablist">
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '1' ? 'active' : ''}
+              aria-selected={activeTab === '1'}
               onClick={() => {
                 setActiveTab('1');
               }}
@@ -43,9 +47,13 @@ export const QueryTabs: React.FC = () => {
               style={{ display: 'inline-flex' }}
             >
               <NavLink
+                tag="button"
+                type="button"
+                role="tab"
                 className={activeTab === '3' ? 'active' : ''}
                 disabled={hasCtes}
                 aria-disabled={hasCtes}
+                aria-selected={activeTab === '3'}
                 style={hasCtes ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                 onClick={() => {
                   if (!hasCtes) {
@@ -71,10 +79,14 @@ export const QueryTabs: React.FC = () => {
         </Nav>
       )}
       {queryType === 'DELETE' && (
-        <Nav tabs className="flex-row">
+        <Nav tabs className="flex-row" role="tablist">
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '1' ? 'active' : ''}
+              aria-selected={activeTab === '1'}
               onClick={() => {
                 setActiveTab('1');
               }}
@@ -84,7 +96,11 @@ export const QueryTabs: React.FC = () => {
           </NavItem>
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '2' ? 'active' : ''}
+              aria-selected={activeTab === '2'}
               onClick={() => {
                 setActiveTab('2');
               }}
@@ -95,10 +111,14 @@ export const QueryTabs: React.FC = () => {
         </Nav>
       )}
       {queryType === 'INSERT' && (
-        <Nav tabs className="flex-row">
+        <Nav tabs className="flex-row" role="tablist">
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '1' ? 'active' : ''}
+              aria-selected={activeTab === '1'}
               onClick={() => {
                 setActiveTab('1');
               }}
@@ -109,10 +129,14 @@ export const QueryTabs: React.FC = () => {
         </Nav>
       )}
       {queryType === 'UPDATE' && (
-        <Nav tabs className="flex-row">
+        <Nav tabs className="flex-row" role="tablist">
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '1' ? 'active' : ''}
+              aria-selected={activeTab === '1'}
               onClick={() => {
                 setActiveTab('1');
               }}
@@ -122,7 +146,11 @@ export const QueryTabs: React.FC = () => {
           </NavItem>
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '2' ? 'active' : ''}
+              aria-selected={activeTab === '2'}
               onClick={() => {
                 setActiveTab('2');
               }}
@@ -132,7 +160,11 @@ export const QueryTabs: React.FC = () => {
           </NavItem>
           <NavItem>
             <NavLink
+              tag="button"
+              type="button"
+              role="tab"
               className={activeTab === '3' ? 'active' : ''}
+              aria-selected={activeTab === '3'}
               onClick={() => {
                 setActiveTab('3');
               }}

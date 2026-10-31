@@ -3,6 +3,7 @@ import { Button, FormGroup, Input, Label, Modal, ModalBody, ModalFooter, ModalHe
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { addCte, removeCte, SET_ACTIVE_TAB } from '../actions/queryActions';
 import { translations } from '../utils/translations';
+import { CTEType } from '../types/queryTypes';
 
 const QueryCteTabs: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -21,7 +22,7 @@ const QueryCteTabs: React.FC = () => {
     return null;
   }
 
-  const handleAddCte = () => {
+  const handleAddCte = (): void => {
     const name = cteName.trim();
     if (!name) {
       return;
@@ -39,9 +40,13 @@ const QueryCteTabs: React.FC = () => {
     dispatch({ type: SET_ACTIVE_TAB, payload: newCteId });
   };
 
-  const handleRemoveCte = (event: React.MouseEvent<HTMLButtonElement>, id: string) => {
+  const handleRemoveCte = (event: React.MouseEvent<HTMLButtonElement>, cte: CTEType): void => {
     event.stopPropagation();
-    dispatch(removeCte(id));
+    dispatch(removeCte(cte.id));
+  };
+
+  const handleSelectCte = (cte: CTEType): void => {
+    dispatch({ type: SET_ACTIVE_TAB, payload: cte.id });
   };
 
   return (
@@ -60,15 +65,16 @@ const QueryCteTabs: React.FC = () => {
             type="button"
             className={`btn btn-sm rounded-0 ${activeTab === cte.id ? 'btn-secondary' : 'btn-light'}`}
             aria-pressed={activeTab === cte.id}
-            onClick={() => dispatch({ type: SET_ACTIVE_TAB, payload: cte.id })}
+            onClick={() => handleSelectCte(cte)}
           >
             {text.ctePrefix} {cte.name}
           </button>
           <button
             type="button"
             className={`btn btn-sm rounded-0 ${activeTab === cte.id ? 'btn-secondary' : 'btn-light'}`}
-            aria-label={`${text.removeCte}: ${cte.name}`}
-            onClick={(event) => handleRemoveCte(event, cte.id)}
+            aria-label={`${text.closeCteTab}: ${cte.name}`}
+            title={`${text.closeCteTab}: ${cte.name}`}
+            onClick={(event) => handleRemoveCte(event, cte)}
           >
             ×
           </button>
@@ -76,7 +82,7 @@ const QueryCteTabs: React.FC = () => {
       ))}
       <button
         type="button"
-        className="btn btn-sm btn-link"
+        className="btn btn-sm btn-outline-primary rounded-0 ml-1"
         onClick={() => {
           setCteName('');
           setNameExists(false);

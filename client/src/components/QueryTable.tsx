@@ -108,7 +108,7 @@ const QueryTableHeader: React.FC<QueryTableHeaderProps> = ({
 interface QueryTableBodyProps {
   data: QueryTableType;
   id: string;
-  constructData: (column: QueryColumnType) => any;
+  constructData: (column: QueryColumnType) => QueryColumnType;
 }
 
 const QueryTableBody: React.FC<QueryTableBodyProps> = React.memo(({ data, id, constructData }) => {
@@ -150,7 +150,7 @@ const QueryTableBody: React.FC<QueryTableBodyProps> = React.memo(({ data, id, co
           </div>
         </div>
 
-        {data.columns.map((column) => {
+        {data.columns.filter((column) => column.column_name.toLowerCase() !== 'xmin').map((column) => {
           const columnId = `${data.id}-column-${column.column_name}`;
 
           return (
